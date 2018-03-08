@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- Disable mobile scaling -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <title>Nicolas Mattia</title>
+
+        <!-- Appended '?v=X' for dirtying cache -->
+        <link rel="stylesheet" type="text/css" href="../css/default.css?v=1" />
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Varela+Round" rel="stylesheet">
+        <link rel="stylesheet" href="../css/font-awesome/css/font-awesome.min.css">
+        <link rel="alternate" type="application/atom+xml" title="nmattia Atom feed" href="../atom.xml?type=blog" />
+        <link rel="alternate" type="application/rss+xml" title="nmattia RSS feed" href="../rss.xml?type=blog" />
+    </head>
+
+    <body>
+        <div class="main">
+            <div class="header">
+                <div class="logo">
+                    <a href="../" class="home">Nicolas Mattia</br></a>
+                    <div class="links">
+                        <a href="https://www.github.com/nmattia"><i class="fa fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/nicolas-mattia/"><i class="fa fa-linkedin"></i></a>
+                        <a href="mailto:nicolas@nmattia.com"><i class="fa fa-envelope-o"></i></a>
+                    </div>
+                </div>
+                <div class="nav">
+                    <ul>
+                        <li><a href="../">home</a></li>
+                        <li><a href="../blog.html">blog</a></li>
+                        <li><a href="../about.html">about</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content">
+                <h1 id="stutter-the-anti-grep">Stutter: the anti-grep</h1>
+<p>I’m going to introduce <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>, a command line tool for generating strings. I’ll first show some examples, then talk a bit about the performance and finally about the implementation (for the Haskell friendly reader).</p>
+<p>This short introduction was motivated by a recent <a href="https://redd.it/66o3lp">post on reddit</a> where the author was looking for something similar (though packaged as a library).</p>
+<h2 id="examples">Examples</h2>
+<p>In its essence, <code>stutter</code> does the opposite of what <code>grep</code> does. You pass <code>grep</code> a definition string and it will find all the matches in the input you provide it. You pass <code>stutter</code> a definition string and it will generate an output based on that string:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1">$ <span class="bu">echo</span> <span class="st">'foo\nbar\nbaz'</span> <span class="kw">|</span> <span class="fu">grep</span> -E <span class="st">'foo|bar|baz'</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ex">baz</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">$ <span class="ex">stutter</span> <span class="st">'foo|bar|baz'</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="ex">baz</span></a></code></pre></div>
+<p>The most basic usage would be to use <code>stutter</code> as an <code>echo</code> clone:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1">$ <span class="bu">echo</span> <span class="st">'foo'</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">$ <span class="ex">stutter</span> <span class="st">'foo'</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="ex">foo</span></a></code></pre></div>
+<p>Though <code>stutter</code> will go further, and allow you to define the output strings in various ways. For instance, you might want either <code>foo</code> <em>or</em> <code>bar</code>. You can use the sum operator <code>|</code> as in the following snippet:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">'foo|bar'</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">bar</span></a></code></pre></div>
+<p>Both <code>foo</code> and <code>bar</code> will appear, but not together. To go back to the first example, let’s simply drop <code>echo</code> so we can better see the parallel between <code>grep</code> and <code>stutter</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">'foo|bar|baz'</span> <span class="kw">|</span> <span class="fu">grep</span> -E <span class="st">'foo|bar|baz'</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ex">baz</span></a></code></pre></div>
+<p>There is an equivalent product operator <code>#</code> if you need both <code>foo</code> <em>and</em> <code>bar</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">'foo#bar'</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ex">foobar</span></a></code></pre></div>
+<p>In this example you could have simply run <code>stutter 'foobar'</code> to get the same result, but sometimes the <code>#</code> operator can come in handy (see for instance the fold operator <code>{|}</code> in the readme’s <a href="https://github.com/nmattia/stutter#examples">examples</a>). Let’s see another important construct, namely the grouping operator <code>()</code>. Say you want either <code>foo</code> <em>and</em> <code>bar</code> <em>or</em> <code>foo</code> <em>and</em> <code>baz</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">'foo(bar|baz)'</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ex">foobar</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="ex">foobaz</span></a></code></pre></div>
+<p>Two things to notice:</p>
+<ol type="1">
+<li>The <code>()</code> operator is optional for groups of one element. It was not necessary to write <code>(foo)(bar|baz)</code>. <code>stutter</code> will assume a group is ending on the first operator occurrence. If you need to use operator characters, you can escape them with a backslash (<code>\</code>) character.</li>
+<li>The <code>#</code> operator is used by default when no other operator is found. It was not necessary to write <code>foo#(bar|baz)</code>.</li>
+</ol>
+<p>There are more examples in the <code>stutter</code> <a href="https://github.com/nmattia/stutter#examples">readme</a> showcasing things like repetition, sourcing files and <code>stdin</code>, character ranges, and more.</p>
+<h2 id="performance">Performance</h2>
+<p>As much as possible <code>stutter</code> tries to only use constant memory. The heap should never grow as long as you stick to “pure” string generations, even if you perform products of infinite lists of words. However the situation is different with “unpure” string generation, for instance when sourcing words from <code>stdin</code>. <code>stutter</code> will do its best to keep the memory usage low. The following for instance will zip <code>stdin</code> with itself:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb7-1" data-line-number="1">$ <span class="fu">cat</span> some_big_file</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ex">line001</span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3"><span class="ex">line002</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4"><span class="ex">line003</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5"><span class="ex">...</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">$ <span class="fu">cat</span> some_big_file <span class="kw">|</span> <span class="ex">stutter</span> <span class="st">'(@-)$(@-)'</span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7"><span class="ex">line001line001</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8"><span class="ex">line002line002</span></a>
+<a class="sourceLine" id="cb7-9" data-line-number="9"><span class="ex">line003line003</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10"><span class="ex">...</span></a></code></pre></div>
+<p>The zip operator <code>$</code> will zip two outputs together, and the <code>@-</code> group will be replaced by the content read from <code>stdin</code>. The example above will still run in constant space, because <code>stutter</code> realizes that it can discard a line from <code>stdin</code> as soon as it was printed. The situation is different with products:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb8-1" data-line-number="1">$ <span class="fu">cat</span> some_big_file <span class="kw">|</span> <span class="ex">stutter</span> <span class="st">'(@-)#(@-)'</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ex">line001line001</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="ex">line001line002</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4"><span class="ex">line001line003</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5"><span class="ex">...</span></a>
+<a class="sourceLine" id="cb8-6" data-line-number="6"><span class="ex">line002line001</span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"><span class="ex">line002line002</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8"><span class="ex">line002line003</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9"><span class="ex">...</span></a></code></pre></div>
+<p>Here <code>stutter</code> <em>must</em> keep the entirety of the group to the right of the product operator <code>#</code>, because it will be repeated for each element produced by the group to the left of the operator. The reason is that <code>stutter</code> cannot tell <code>stdin</code> to simply “rewind” and start again from the beginning of the input. However, consider the slightly different example:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb9-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">'(@some_big_file)#(@some_big_file)'</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="ex">...</span></a></code></pre></div>
+<p>This command produces the exact same output, but reads <code>some_big_file</code> directly. In this case <code>stutter</code> will prefer reading the file from disk over and over again rather than keeping it in memory. This is something you should keep in mind if your operation has to perform many disk reads and that your hard-drive is slow. If the live data is not too big consider threading it through <code>stdin</code> first (I might add an option to enable the behavior when reading from a file).</p>
+<p>For most operations <code>stutter</code> should outperform commands composed from several different programs and shell built-ins. The reason is that <code>stutter</code> runs in a single process (which avoids context switches and inter-process communication), and that <code>stutter</code> is optimized for specific kinds of commands. For instance on my machine printing the <code>a</code> character to <code>stdout</code> a million times takes over three seconds with <code>echo</code> while it only takes half a second with <code>stutter</code>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb10-1" data-line-number="1">$ <span class="bu">time</span> (stutter <span class="st">'a+'</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l)</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ex">1000000</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"><span class="kw">(</span> <span class="ex">stutter</span> <span class="st">'a+'</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l<span class="kw">;</span> <span class="kw">)</span> ⤶</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">        <span class="ex">0.62s</span> user 0.13s system 145% cpu 0.515 total</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">$ <span class="bu">time</span> (while true<span class="kw">;</span> <span class="kw">do</span> <span class="bu">echo</span> <span class="st">'a'</span><span class="kw">;</span> <span class="kw">done</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l)</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6"><span class="ex">1000000</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7"><span class="kw">(</span> <span class="kw">while</span> <span class="fu">true</span><span class="kw">;</span> <span class="kw">do</span>; <span class="bu">echo</span> <span class="st">'a'</span><span class="kw">;</span> <span class="kw">done</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l<span class="kw">;</span> <span class="kw">)</span> ⤶</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">        <span class="ex">2.32s</span> user 3.32s system 154% cpu 3.658 total</a></code></pre></div>
+<h2 id="implementation">Implementation</h2>
+<p>The <code>stutter</code> code is spread across two tiny modules and is basically a thin wrapper around the excellent <a href="http://hackage.haskell.org/package/conduit"><code>conduit</code></a> library. The first module, <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Parser.hs"><code>Stutter.Parser</code></a>, is dedicated to parsing the commands. The only exported function is <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Parser.hs#L60"><code>parseGroup</code></a>:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">parseGroup ::</span> <span class="dt">Atto.Parser</span> <span class="dt">ProducerGroup</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">parseGroup <span class="fu">=</span> <span class="fu">...</span></a></code></pre></div>
+<p>From a command input by the user <code>stutter</code> will try to extract a <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs#L28"><code>ProducerGroup</code></a>, which is a tree-like data-structure defined in the second module, <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs"><code>Stutter.Producer</code></a>. The role of <code>ProducerGroup</code> is that of an AST:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">data</span> <span class="dt">ProducerGroup_</span> a</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">PSum</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">PProduct</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">PZip</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">PRepeat</span> (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">  <span class="fu">|</span> <span class="dt">PRanges</span> [<span class="dt">Range</span>]</a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">  <span class="fu">|</span> <span class="dt">PFile</span> FilePath</a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">  <span class="fu">|</span> <span class="dt">PStdin</span> a</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">  <span class="fu">|</span> <span class="dt">PText</span> <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb12-10" data-line-number="10">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Functor</span>, <span class="dt">Foldable</span>, <span class="dt">Traversable</span>)</a></code></pre></div>
+<p>The meat of <code>stutter</code> is in the <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs#L73"><code>produceGroup</code></a> function, also defined in <code>Stutter.Producer</code>. This turns a parsed <code>ProducerGroup</code> into a <code>conduit</code> <a href="http://hackage.haskell.org/package/conduit-1.2.10/docs/Data-Conduit.html#t:Source"><code>Source</code></a>:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">produceGroup</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">MonadIO</span> m, <span class="dt">MonadResource</span> m)</a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">ProducerGroup</span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Source</span> m <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb13-5" data-line-number="5"><span class="fu">...</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">produceGroup (<span class="dt">PZip</span> g g') <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    zipSources (produceGroup g) (produceGroup g')</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">    <span class="fu">.|</span> CL.map (uncurry (<span class="fu">&lt;&gt;</span>))</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9"><span class="fu">...</span></a></code></pre></div>
+<p>If you look through the code you will see that <code>produceGroup</code> doesn’t do anything fancy, it just leverages the <code>conduit</code> capabilities.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>I hope you enjoyed this quick introduction to <a href="https://github.com/nmattia/stutter"><code>stutter</code></a> and that, one day, it might help you do your job faster (like for instance <a href="2017-03-05-crack-luks-stutter-gnu-parallel.html">recovering a forgotten password</a>). Please read the <a href="https://github.com/nmattia/stutter#contributing"><code>contributing</code></a> section of the README, there’s a lot you can do to help the development and improve <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>, the anti-grep.</p>
+            </div>
+        </div>
+
+        <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-82921132-1', 'auto');
+    ga('send', 'pageview');
+
+        </script>
+    </body>
+</html>

@@ -1,0 +1,878 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>nmattia's blog</title>
+    <link href="http://www.nmattia.com/atom.xml" rel="self" />
+    <link href="http://www.nmattia.com" />
+    <id>http://www.nmattia.com/atom.xml</id>
+    <author>
+        <name>Nicolas Mattia</name>
+        <email>nicolas@nmattia.com</email>
+    </author>
+    <updated>2017-09-07T00:00:00Z</updated>
+    <entry>
+    <title>A Fully Functional, Fully Functional Webapp</title>
+    <link href="http://www.nmattia.com/posts/2017-09-07-fully-functional-webapp.html" />
+    <id>http://www.nmattia.com/posts/2017-09-07-fully-functional-webapp.html</id>
+    <published>2017-09-07T00:00:00Z</published>
+    <updated>2017-09-07T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h1 id="a-fully-functional-fully-functional-webapp">A Fully Functional, Fully Functional Webapp</h1>
+<p>Last Tuesday I gave a 30 minute talk about building and packaging a webapp using functional-programming tools at the <a href="https://www.meetup.com/Web-Zurich/events/242642751/">Web Zürich September Session</a>. It’s a short introduction to using Haskell’s <a href="https://haskell-servant.github.io/">servant</a> and <a href="https://github.com/reflex-frp/reflex">reflex</a> libraries for writing a webapp (using GHC and GHCJS). The webapp is packaged with the <a href="https://nixos.org/nix/">Nix package manager</a>. It was a nice adventure discovering about <a href="https://github.com/reflex-frp/reflex-platform">reflex</a>, <a href="https://github.com/imalsogreg/servant-reflex">servant-reflex</a> and Nix’ quirks… big thanks to <a href="https://zimbatm.com/">zimbatm</a> for helping out.</p>
+<p>The (documented) <a href="https://github.com/nmattia/websters">source code</a>, the <a href="http://slides.nmattia.com/websters/">slides</a> and the <a href="https://youtu.be/amTG4sGbXsk?t=3m11s">video</a> are available online.</p>]]></summary>
+</entry>
+<entry>
+    <title>2017-05-01-release-stutter</title>
+    <link href="http://www.nmattia.com/posts/2017-05-01-release-stutter.html" />
+    <id>http://www.nmattia.com/posts/2017-05-01-release-stutter.html</id>
+    <published>2017-05-01T00:00:00Z</published>
+    <updated>2017-05-01T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h1 id="stutter-the-anti-grep">Stutter: the anti-grep</h1>
+<p>I’m going to introduce <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>, a command line tool for generating strings. I’ll first show some examples, then talk a bit about the performance and finally about the implementation (for the Haskell friendly reader).</p>
+<p>This short introduction was motivated by a recent <a href="https://redd.it/66o3lp">post on reddit</a> where the author was looking for something similar (though packaged as a library).</p>
+<h2 id="examples">Examples</h2>
+<p>In its essence, <code>stutter</code> does the opposite of what <code>grep</code> does. You pass <code>grep</code> a definition string and it will find all the matches in the input you provide it. You pass <code>stutter</code> a definition string and it will generate an output based on that string:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1">$ <span class="bu">echo</span> <span class="st">&#39;foo\nbar\nbaz&#39;</span> <span class="kw">|</span> <span class="fu">grep</span> -E <span class="st">&#39;foo|bar|baz&#39;</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ex">baz</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">$ <span class="ex">stutter</span> <span class="st">&#39;foo|bar|baz&#39;</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="ex">baz</span></a></code></pre></div>
+<p>The most basic usage would be to use <code>stutter</code> as an <code>echo</code> clone:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1">$ <span class="bu">echo</span> <span class="st">&#39;foo&#39;</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">$ <span class="ex">stutter</span> <span class="st">&#39;foo&#39;</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="ex">foo</span></a></code></pre></div>
+<p>Though <code>stutter</code> will go further, and allow you to define the output strings in various ways. For instance, you might want either <code>foo</code> <em>or</em> <code>bar</code>. You can use the sum operator <code>|</code> as in the following snippet:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;foo|bar&#39;</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">bar</span></a></code></pre></div>
+<p>Both <code>foo</code> and <code>bar</code> will appear, but not together. To go back to the first example, let’s simply drop <code>echo</code> so we can better see the parallel between <code>grep</code> and <code>stutter</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;foo|bar|baz&#39;</span> <span class="kw">|</span> <span class="fu">grep</span> -E <span class="st">&#39;foo|bar|baz&#39;</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ex">foo</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="ex">bar</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ex">baz</span></a></code></pre></div>
+<p>There is an equivalent product operator <code>#</code> if you need both <code>foo</code> <em>and</em> <code>bar</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;foo#bar&#39;</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ex">foobar</span></a></code></pre></div>
+<p>In this example you could have simply run <code>stutter 'foobar'</code> to get the same result, but sometimes the <code>#</code> operator can come in handy (see for instance the fold operator <code>{|}</code> in the readme’s <a href="https://github.com/nmattia/stutter#examples">examples</a>). Let’s see another important construct, namely the grouping operator <code>()</code>. Say you want either <code>foo</code> <em>and</em> <code>bar</code> <em>or</em> <code>foo</code> <em>and</em> <code>baz</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;foo(bar|baz)&#39;</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ex">foobar</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="ex">foobaz</span></a></code></pre></div>
+<p>Two things to notice:</p>
+<ol type="1">
+<li>The <code>()</code> operator is optional for groups of one element. It was not necessary to write <code>(foo)(bar|baz)</code>. <code>stutter</code> will assume a group is ending on the first operator occurrence. If you need to use operator characters, you can escape them with a backslash (<code>\</code>) character.</li>
+<li>The <code>#</code> operator is used by default when no other operator is found. It was not necessary to write <code>foo#(bar|baz)</code>.</li>
+</ol>
+<p>There are more examples in the <code>stutter</code> <a href="https://github.com/nmattia/stutter#examples">readme</a> showcasing things like repetition, sourcing files and <code>stdin</code>, character ranges, and more.</p>
+<h2 id="performance">Performance</h2>
+<p>As much as possible <code>stutter</code> tries to only use constant memory. The heap should never grow as long as you stick to “pure” string generations, even if you perform products of infinite lists of words. However the situation is different with “unpure” string generation, for instance when sourcing words from <code>stdin</code>. <code>stutter</code> will do its best to keep the memory usage low. The following for instance will zip <code>stdin</code> with itself:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb7-1" data-line-number="1">$ <span class="fu">cat</span> some_big_file</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ex">line001</span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3"><span class="ex">line002</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4"><span class="ex">line003</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5"><span class="ex">...</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">$ <span class="fu">cat</span> some_big_file <span class="kw">|</span> <span class="ex">stutter</span> <span class="st">&#39;(@-)$(@-)&#39;</span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7"><span class="ex">line001line001</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8"><span class="ex">line002line002</span></a>
+<a class="sourceLine" id="cb7-9" data-line-number="9"><span class="ex">line003line003</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10"><span class="ex">...</span></a></code></pre></div>
+<p>The zip operator <code>$</code> will zip two outputs together, and the <code>@-</code> group will be replaced by the content read from <code>stdin</code>. The example above will still run in constant space, because <code>stutter</code> realizes that it can discard a line from <code>stdin</code> as soon as it was printed. The situation is different with products:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb8-1" data-line-number="1">$ <span class="fu">cat</span> some_big_file <span class="kw">|</span> <span class="ex">stutter</span> <span class="st">&#39;(@-)#(@-)&#39;</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ex">line001line001</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="ex">line001line002</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4"><span class="ex">line001line003</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5"><span class="ex">...</span></a>
+<a class="sourceLine" id="cb8-6" data-line-number="6"><span class="ex">line002line001</span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"><span class="ex">line002line002</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8"><span class="ex">line002line003</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9"><span class="ex">...</span></a></code></pre></div>
+<p>Here <code>stutter</code> <em>must</em> keep the entirety of the group to the right of the product operator <code>#</code>, because it will be repeated for each element produced by the group to the left of the operator. The reason is that <code>stutter</code> cannot tell <code>stdin</code> to simply “rewind” and start again from the beginning of the input. However, consider the slightly different example:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb9-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;(@some_big_file)#(@some_big_file)&#39;</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="ex">...</span></a></code></pre></div>
+<p>This command produces the exact same output, but reads <code>some_big_file</code> directly. In this case <code>stutter</code> will prefer reading the file from disk over and over again rather than keeping it in memory. This is something you should keep in mind if your operation has to perform many disk reads and that your hard-drive is slow. If the live data is not too big consider threading it through <code>stdin</code> first (I might add an option to enable the behavior when reading from a file).</p>
+<p>For most operations <code>stutter</code> should outperform commands composed from several different programs and shell built-ins. The reason is that <code>stutter</code> runs in a single process (which avoids context switches and inter-process communication), and that <code>stutter</code> is optimized for specific kinds of commands. For instance on my machine printing the <code>a</code> character to <code>stdout</code> a million times takes over three seconds with <code>echo</code> while it only takes half a second with <code>stutter</code>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb10-1" data-line-number="1">$ <span class="bu">time</span> (stutter <span class="st">&#39;a+&#39;</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l)</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ex">1000000</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"><span class="kw">(</span> <span class="ex">stutter</span> <span class="st">&#39;a+&#39;</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l<span class="kw">;</span> <span class="kw">)</span> ⤶</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">        <span class="ex">0.62s</span> user 0.13s system 145% cpu 0.515 total</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">$ <span class="bu">time</span> (while true<span class="kw">;</span> <span class="kw">do</span> <span class="bu">echo</span> <span class="st">&#39;a&#39;</span><span class="kw">;</span> <span class="kw">done</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l)</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6"><span class="ex">1000000</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7"><span class="kw">(</span> <span class="kw">while</span> <span class="fu">true</span><span class="kw">;</span> <span class="kw">do</span>; <span class="bu">echo</span> <span class="st">&#39;a&#39;</span><span class="kw">;</span> <span class="kw">done</span> <span class="kw">|</span> <span class="fu">head</span> -n 1000000 <span class="kw">|</span> <span class="fu">wc</span> -l<span class="kw">;</span> <span class="kw">)</span> ⤶</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">        <span class="ex">2.32s</span> user 3.32s system 154% cpu 3.658 total</a></code></pre></div>
+<h2 id="implementation">Implementation</h2>
+<p>The <code>stutter</code> code is spread across two tiny modules and is basically a thin wrapper around the excellent <a href="http://hackage.haskell.org/package/conduit"><code>conduit</code></a> library. The first module, <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Parser.hs"><code>Stutter.Parser</code></a>, is dedicated to parsing the commands. The only exported function is <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Parser.hs#L60"><code>parseGroup</code></a>:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">parseGroup ::</span> <span class="dt">Atto.Parser</span> <span class="dt">ProducerGroup</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">parseGroup <span class="fu">=</span> <span class="fu">...</span></a></code></pre></div>
+<p>From a command input by the user <code>stutter</code> will try to extract a <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs#L28"><code>ProducerGroup</code></a>, which is a tree-like data-structure defined in the second module, <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs"><code>Stutter.Producer</code></a>. The role of <code>ProducerGroup</code> is that of an AST:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">data</span> <span class="dt">ProducerGroup_</span> a</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">PSum</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">PProduct</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">PZip</span> (<span class="dt">ProducerGroup_</span> a) (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">PRepeat</span> (<span class="dt">ProducerGroup_</span> a)</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">  <span class="fu">|</span> <span class="dt">PRanges</span> [<span class="dt">Range</span>]</a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">  <span class="fu">|</span> <span class="dt">PFile</span> FilePath</a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">  <span class="fu">|</span> <span class="dt">PStdin</span> a</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">  <span class="fu">|</span> <span class="dt">PText</span> <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb12-10" data-line-number="10">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>, <span class="dt">Functor</span>, <span class="dt">Foldable</span>, <span class="dt">Traversable</span>)</a></code></pre></div>
+<p>The meat of <code>stutter</code> is in the <a href="https://github.com/nmattia/stutter/blob/3b6aad3f1df6070f2c3a4a61c3e56658f1b21702/src/Stutter/Producer.hs#L73"><code>produceGroup</code></a> function, also defined in <code>Stutter.Producer</code>. This turns a parsed <code>ProducerGroup</code> into a <code>conduit</code> <a href="http://hackage.haskell.org/package/conduit-1.2.10/docs/Data-Conduit.html#t:Source"><code>Source</code></a>:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">produceGroup</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">MonadIO</span> m, <span class="dt">MonadResource</span> m)</a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">ProducerGroup</span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Source</span> m <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb13-5" data-line-number="5"><span class="fu">...</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">produceGroup (<span class="dt">PZip</span> g g&#39;) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    zipSources (produceGroup g) (produceGroup g&#39;)</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">    <span class="fu">.|</span> CL.map (uncurry (<span class="fu">&lt;&gt;</span>))</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9"><span class="fu">...</span></a></code></pre></div>
+<p>If you look through the code you will see that <code>produceGroup</code> doesn’t do anything fancy, it just leverages the <code>conduit</code> capabilities.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>I hope you enjoyed this quick introduction to <a href="https://github.com/nmattia/stutter"><code>stutter</code></a> and that, one day, it might help you do your job faster (like for instance <a href="2017-03-05-crack-luks-stutter-gnu-parallel.html">recovering a forgotten password</a>). Please read the <a href="https://github.com/nmattia/stutter#contributing"><code>contributing</code></a> section of the README, there’s a lot you can do to help the development and improve <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>, the anti-grep.</p>]]></summary>
+</entry>
+<entry>
+    <title>2017-04-29-haskell-makefile-release</title>
+    <link href="http://www.nmattia.com/posts/2017-04-29-haskell-makefile-release.html" />
+    <id>http://www.nmattia.com/posts/2017-04-29-haskell-makefile-release.html</id>
+    <published>2017-04-29T00:00:00Z</published>
+    <updated>2017-04-29T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h1 id="haskell-makefile-library">Haskell makefile library</h1>
+<p>I’ve just released a new version of <a href="https://github.com/nmattia/mask"><code>makefile</code></a>, the Haskell library for parsing and generating Makefiles. The new version is available on <a href="http://hackage.haskell.org/package/makefile">hackage</a> and on <a href="https://www.stackage.org/package/makefile">stackage</a>. The code is available on <a href="https://github.com/nmattia/mask">github</a>.</p>
+<p>What happened since the last version:</p>
+<ul>
+<li><p>The <code>Makefile</code> data-structure can now be encoded through <code>encodeMakefile</code>. This does what you expect: encode your Haskell-crafted <code>Makefile</code> as a Makefile that can be used with GNU make, for instance. Big thanks to <a href="https://github.com/michelk">Michel Kuhlmann</a> for implementing the feature.</p></li>
+<li><p>The library now uses <code>text</code> instead of <code>bytestring</code>. All types reflect the change. Thanks to <a href="https://github.com/Fuuzetsu/">Mateusz Kowalczyk</a> for complaining about it.</p></li>
+<li><p>It is now possible to differentiate the various kinds of Makefile variable assignments.</p></li>
+<li><p>Various discrepancies between the library and GNU make’s parsing were fixed. Big thanks to <a href="https://ryanglscott.github.io/">Ryan Scott</a> for reporting those.</p></li>
+</ul>
+<p>I hope you have fun using the library. Don’t hesitate to submit patches or feature requests on github.</p>]]></summary>
+</entry>
+<entry>
+    <title>2017-03-05-crack-luks-stutter-gnu-parallel</title>
+    <link href="http://www.nmattia.com/posts/2017-03-05-crack-luks-stutter-gnu-parallel.html" />
+    <id>http://www.nmattia.com/posts/2017-03-05-crack-luks-stutter-gnu-parallel.html</id>
+    <published>2017-03-05T00:00:00Z</published>
+    <updated>2017-03-05T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>A few days ago I found myself with two terabytes’ worth of my personal data encrypted but only half of a password. Here are notes from the adventure.</p>
+<p>I used the following tools to recover my password:</p>
+<ul>
+<li><a href="https://gitlab.com/cryptsetup/cryptsetup"><code>cryptsetup</code></a> for dealing with <code>LUKS</code></li>
+<li><a href="https://github.com/nmattia/stutter"><code>stutter</code></a> for generating the passwords</li>
+<li><a href="https://www.gnu.org/software/parallel/"><code>GNU parallel</code></a> and <code>xargs</code> from <a href="https://www.gnu.org/software/findutils/">findutils</a> for parallelizing the jobs</li>
+</ul>
+<h2 id="the-story">The story</h2>
+<p>Here is basically what happened: I thought it definitely was time for a proper backup of my personal data. I spent some time looking for the right backup tool, found it, freed up two hard drives and formatted them. I said “yes” when the gnome disk utility asked me whether or not I wanted my disks to be encrypted. I picked passphrases, copied my data to the first disk, to the second disk. Happy with the result, I deleted all the data from my laptop, since I had two other replicas. Of course the data was very sensitive (pictures from my childhood, lecture material from university, mind you) so I decided it was <em>waaaaaay</em> too risky to save the passphrases anywhere other than in my very, very reliable memory.</p>
+<p>Two weeks later, waiting for the bus, I realized I had no idea what those passphrases were anymore.</p>
+<p>One was completely gone. I could not remember at all what it was, how it started or ended, and whether it contained actual words or was just a string of random characters. I remembered some bits of the second one, however. All I would have to do is generate some strings resembling what I remembered and test them against the hard drives.</p>
+<h2 id="finding-the-right-tools">Finding the right tools</h2>
+<p>I knew the following things about my password that could greatly reduce the search space:</p>
+<p><em>note: In order not to disclose my password to the internet, I’ve adapted it a bit. This one might <a href="https://xkcd.com/936/">look familiar</a>. In essence my password was very similar.</em></p>
+<ol type="1">
+<li>my password contains four words, separated by dashes: <code>&lt;word1&gt;-&lt;word2&gt;-&lt;word3&gt;-&lt;word4&gt;</code></li>
+<li><code>&lt;word1&gt;</code> is the word “correct”</li>
+<li><code>&lt;word2&gt;</code> is an animal</li>
+<li><code>&lt;word3&gt;</code> is either “battery” or “batery”</li>
+<li><code>&lt;word4&gt;</code> is either “stable” or “staple”</li>
+</ol>
+<p>So let’s think for a second. There are three different aspects to this problem:</p>
+<ol type="1">
+<li>Generate strings based on the fuzzy definition above</li>
+<li>Test whether a given string unlocks (any of) the device(s)</li>
+<li>Somehow take full advantage of “all” the CPUs I have at my disposal</li>
+</ol>
+<p>My hard-drives being encrypted with <code>LUKS</code> (we’ll get to what exactly that means in a second) I googled “decrypt <code>LUKS</code>” or something similar, and followed links from there. The project <a href="https://github.com/glv2/bruteforce-luks"><code>bruteforce-luks</code></a> came up, and seemed to be exactly what I needed at first. It parallelizes the jobs and allows you to give hints about what the password looks like. However, it wasn’t flexible enough for my use case, because it only allows you to specify the beginning and/or the end of your password. It does take care of (2) and (3) above, but not (1).</p>
+<p>In general I like to abide by the first “rule” of the Unix philosophy:</p>
+<blockquote>
+<p>Make each program do one thing well.</p>
+</blockquote>
+<p>Using streams and redirection there’s a lot you can achieve while using simple programs. Moreover, since you get full control over each program (or at least as much as its arguments allow you to) every single solution is still flexible and allows you to iterate quickly. Sometimes you have to get a bit creative but it generally works quite well.</p>
+<p>Having a look at our requirements above, what building blocks can we use to solve our problem? Clearly, <a href="https://gitlab.com/cryptsetup/cryptsetup"><code>cryptsetup</code></a> is the perfect tool for (2). For parallelising jobs, <a href="https://www.gnu.org/software/parallel/"><code>GNU parallel</code></a> can also be a great fit, and will do just fine for our use case. Unfortunately I was not able to find the right tool for (1) and had to write my own tool, <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>. There might be such a tool out there but I just couldn’t find it.</p>
+<h2 id="generating-the-input">Generating the input</h2>
+<p>Let’s see how we can generate the various strings to test as passphrases using <a href="https://github.com/nmattia/stutter"><code>stutter</code></a>. Using <a href="https://github.com/nmattia/stutter"><code>stutter</code></a> is a bit like using <code>grep</code>, but the other way around. You feed <code>grep</code> a bunch of strings and ask whether they match some definition. In comparison you feed <a href="https://github.com/nmattia/stutter"><code>stutter</code></a> a definition and ask to produce the strings that match that definition. Let’s start with a simple example:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-zebra-batery-stable&#39;</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ex">correct-zebra-batery-stable</span></a></code></pre></div>
+<p>When given a simple string, stutter will simply echo it back to <code>stdout</code>. Now, what did we say? How many <code>t</code>s did we give <code>&lt;word3&gt;</code>? One, two? We’ll let stutter potentially omit the second <code>t</code>:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-zebra-bat(t)?ery-stable&#39;</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ex">correct-zebra-batery-stable</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="ex">correct-zebra-battery-stable</span></a></code></pre></div>
+<p>Then, what did we say <code>&lt;word4&gt;</code> was? It couldn’t possibly be “stable”, it must have been “staple”. Though I’m pretty sure something had to do with horses. Let’s keep “stable” around just in case:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-zebra-bat(t)?ery-sta(b|p)le&#39;</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ex">correct-zebra-batery-stable</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ex">correct-zebra-batery-staple</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="ex">correct-zebra-battery-stable</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="ex">correct-zebra-battery-staple</span></a></code></pre></div>
+<p>What else do we know about the passphrase? Right, <code>&lt;word2&gt;</code> is some animal. Let’s first compile a list of animals…</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1">$ <span class="fu">cat</span> animals.txt</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ex">aardvark</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="ex">albatross</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ex">alligator</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="ex">alpaca</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="ex">ant</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="ex">anteater</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="ex">antelope</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="ex">ape</span></a>
+<a class="sourceLine" id="cb4-10" data-line-number="10"><span class="ex">armadillo</span></a>
+<a class="sourceLine" id="cb4-11" data-line-number="11"><span class="ex">ass</span></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12"><span class="ex">...</span></a></code></pre></div>
+<p>… and tell stutter to use it for generating the strings:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-(@animals.txt)-bat(t)?ery-sta(p|b)le&#39;</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ex">correct-aardvark-batery-staple</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="ex">correct-aardvark-batery-stable</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="ex">correct-aardvark-battery-staple</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="ex">correct-aardvark-battery-stable</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6"><span class="ex">correct-albatross-batery-staple</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7"><span class="ex">correct-albatross-batery-stable</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8"><span class="ex">correct-albatross-battery-staple</span></a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"><span class="ex">correct-albatross-battery-stable</span></a>
+<a class="sourceLine" id="cb5-10" data-line-number="10"><span class="ex">correct-alligator-batery-staple</span></a>
+<a class="sourceLine" id="cb5-11" data-line-number="11"><span class="ex">correct-alligator-batery-stable</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12"><span class="ex">...</span></a></code></pre></div>
+<p>Cool, we solved (1)!</p>
+<h2 id="luks-get-cosy">LUK’S get cosy</h2>
+<p>Before we start writing hacky shell scripts with <code>sudo</code> sprinkled everywhere, let’s see if we can <em>maybe</em> avoid acting on the hard-drive directly. If we can decouple the jobs from the hard-drive itself, it also means that we can ship our job anywhere (like a <em>big</em> instance somewhere with many, many CPUs) without having to send all of the hard-drive’s content.</p>
+<p><code>LUKS</code> seems to be the default way to encrypt a partition on Linux nowadays. It is not a filesystem of its own. Rather, it’s just a <em>specification</em> for partition encryption (<code>LUKS</code> stands for <em>Linux Unified Key Setup</em>). It basically works by specifying a “partition header” (<em>phdr</em>) that should be present on the first bytes of the partition. This partition header declares various things, like how the rest of the partition is encrypted. Below I’ve reproduced a table containing the information about the first 592 bytes of the partition (header) (have a look at the <a href="http://tomb.dyne.org/Luks_on_disk_format.pdf"><code>LUKS</code> specification document</a> for more information):</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: right;">start offset</th>
+<th>field name</th>
+<th style="text-align: right;">length</th>
+<th>data type</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td>magic</td>
+<td style="text-align: right;">6</td>
+<td>byte[]</td>
+<td>magic for <code>LUKS</code> partition header, see <code>LUKS_MAGIC</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">6</td>
+<td>version</td>
+<td style="text-align: right;">2</td>
+<td>uint16_t</td>
+<td><code>LUKS</code> version</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">8</td>
+<td>cipher-name</td>
+<td style="text-align: right;">32</td>
+<td>char[]</td>
+<td>cipher name specification</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">40</td>
+<td>cipher-mode</td>
+<td style="text-align: right;">32</td>
+<td>char[]</td>
+<td>cipher mode specification</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">72</td>
+<td>hash-spec</td>
+<td style="text-align: right;">32</td>
+<td>char[]</td>
+<td>hash specification</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">104</td>
+<td>payload-offset</td>
+<td style="text-align: right;">4</td>
+<td>uint32_t</td>
+<td>start offset of the bulk data (in sectors)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">108</td>
+<td>key-bytes</td>
+<td style="text-align: right;">4</td>
+<td>uint32 t</td>
+<td>number of key bytes</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">112</td>
+<td>mk-digest</td>
+<td style="text-align: right;">20</td>
+<td>byte[]</td>
+<td>master key checksum from PBKDF2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">132</td>
+<td>mk-digest-salt</td>
+<td style="text-align: right;">32</td>
+<td>byte[]</td>
+<td>salt parameter for master key PBKDF2</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">164</td>
+<td>mk-digest-iter</td>
+<td style="text-align: right;">4</td>
+<td>uint32 t</td>
+<td>iterations parameter for master key PBKDF2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">168</td>
+<td>uuid</td>
+<td style="text-align: right;">40</td>
+<td>char[]</td>
+<td>UUID of the partition</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">208</td>
+<td>key-slot-1</td>
+<td style="text-align: right;">48</td>
+<td>key slot</td>
+<td>key slot 1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">256</td>
+<td>key-slot-2</td>
+<td style="text-align: right;">48</td>
+<td>key slot</td>
+<td>key slot 2</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">…</td>
+<td>…</td>
+<td style="text-align: right;">…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">544</td>
+<td>key-slot-8</td>
+<td style="text-align: right;">48</td>
+<td>key slot</td>
+<td>key slot 8</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">592</td>
+<td>total phdr size</td>
+</tr>
+</tbody>
+</table>
+<p>After the partition header, <code>LUKS</code> stores the (encrypted) “key material”, and then the “bulk data”. The “key material” is basically keys used to encrypt the “bulk data”, and the “bulk data” is the actual data that you stored (like those childhood pictures you want to recover). Note that the “key material” itself is encrypted with <em>the</em> pass-phrase, the one you shouldn’t forget. Again: Your passphrase encrypts the <code>LUKS</code> keys, and the <code>LUKS</code> keys encrypt your data. And yes, you can have several <code>LUKS</code> keys, but we won’t care about it too much.</p>
+<p>Anyway, the important point is that everything you need in order to check that a given passphrase will allow you to mount your <code>LUKS</code> volume is located at the very beginning of the partition, which we’ll copy locally in order to (once again):</p>
+<ol type="1">
+<li>avoid the risks associated with tempering with the data directly on the disk</li>
+<li>be able to unplug the disk or ship the cracking job somewhere</li>
+</ol>
+<p>It turns out that <code>cryptsetup</code> won’t work unless it’s got 1,049,600 bytes (or about <span class="math inline">2<sup>20</sup></span> bytes) of data to work with, which is plenty for us, so let’s just copy that (assuming that the actual encrypted partition is <code>/dev/sdb1</code>):</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1">$ <span class="fu">dd</span> if=/dev/sdb1 bs=1 count=1049600 of=./encrypted-file</a></code></pre></div>
+<p>Let’s see what this looks like:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb7-1" data-line-number="1">$ <span class="fu">cat</span> encrypted-file <span class="kw">|</span> <span class="fu">head</span> -c 1024</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ex">LUKS...esxts-plain64sha1...</span></a></code></pre></div>
+<p>Ok, doesn’t look like much. If you try the command yourself you’ll most likely see a bunch of funny symbols. Instead of using good old <code>cat</code> we’ll use <code>hexdump</code> which is more appropriate. We’ll use the following <code>hexdump</code> parameters:</p>
+<ul>
+<li><code>-s &lt;n&gt;</code>: <strong>s</strong>kip, which skips the <code>&lt;n&gt;</code> first bytes</li>
+<li><code>-n &lt;n&gt;</code>: which takes <code>&lt;n&gt;</code> bytes only</li>
+</ul>
+<p>Looking at the table above we see that the first <code>LUKS</code> field is located between the bytes <code>0</code> and <code>6</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb8-1" data-line-number="1">$ <span class="ex">hd</span> encrypted-file -n 6</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ex">00000000</span>  4c 55 4b 53 ba be                                 <span class="kw">|</span><span class="ex">LUKS..</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="ex">00000006</span></a></code></pre></div>
+<p>This is actually the <code>LUKS_MAGIC</code>, or the things that tells people looking at the partition (like us) that they’re dealing with <code>LUKS</code> (for more information, once again, have a look at the <a href="http://tomb.dyne.org/Luks_on_disk_format.pdf"><code>LUKS</code> specification</a>). Next come the <code>LUKS</code> version (which seems to start at <code>01</code>) and the cipher name:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb9-1" data-line-number="1">$ <span class="ex">hd</span> encrypted-file -s 6 -n 2</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="ex">00000006</span>  00 01                                             <span class="kw">|</span><span class="ex">..</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="ex">00000008</span></a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">$ <span class="ex">hd</span> encrypted-file -s 8 -n 32</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5"><span class="ex">00000008</span>  61 65 73 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">aes.............</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb9-6" data-line-number="6"><span class="ex">00000018</span>  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">................</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb9-7" data-line-number="7"><span class="ex">00000028</span></a></code></pre></div>
+<p>Actually, it shouldn’t come as a surprise that most of what’s stored in the partition header has to do with <em>how</em> your stuff is encrypted:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb10-1" data-line-number="1">$ <span class="ex">hd</span> encrypted-file -s 8 -n 96</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ex">00000008</span>  61 65 73 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">aes.............</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"><span class="ex">00000018</span>  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">................</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4"><span class="ex">00000028</span>  78 74 73 2d 70 6c 61 69  6e 36 34 00 00 00 00 00  <span class="kw">|</span><span class="ex">xts-plain64.....</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-5" data-line-number="5"><span class="ex">00000038</span>  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">................</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6"><span class="ex">00000048</span>  73 68 61 31 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">sha1............</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7"><span class="ex">00000058</span>  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  <span class="kw">|</span><span class="ex">................</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb10-8" data-line-number="8"><span class="ex">00000068</span></a></code></pre></div>
+<p>We’ll look at one last thing, which is the <code>key-slots</code>. As you can see in the table above, information about the first <code>key-slot</code> can be found at byte <code>208</code>:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb11-1" data-line-number="1">$ <span class="ex">hd</span> encrypted-file -s 208 -n 4</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="ex">000000d0</span>  00 ac 71 f3                                       <span class="kw">|</span><span class="ex">..q.</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb11-3" data-line-number="3"><span class="ex">000000d4</span></a></code></pre></div>
+<p>This is not the key itself (that’d be the “key material” after the partition header). Rather, it’s information about a key. What those four bytes tell us is that the key is <em>active</em>, or <code>ac71fe</code>. If like me you only have one key, the second key (or the last seven keys for that matter) should be marked as <code>dead</code>:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb12-1" data-line-number="1">$ <span class="ex">hd</span> encrypted-file -s 256 -n 4</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="ex">00000100</span>  00 00 de ad                                       <span class="kw">|</span><span class="ex">....</span><span class="kw">|</span></a>
+<a class="sourceLine" id="cb12-3" data-line-number="3"><span class="ex">00000104</span></a></code></pre></div>
+<p>Ok, looks like we have what we need. Let’s get started for realz.</p>
+<h2 id="the-last-stretch">The last stretch</h2>
+<p>We’re almost done, all we need to do is stitch everything together. One thing to note: when testing for a passphrase, <code>cryptsetup</code> returns <code>0</code> if the passphrase unlocks the partition, <code>2</code> if it doesn’t, and something else if there was an unexpected error (like: the partition doesn’t exist). So at the end of the day we just want to know what <code>cryptsetup</code>’s return code is. If it’s <code>2</code>, fine, we provided a bad passphrase, let’s try another one. If it is <em>not</em> <code>2</code>, then we stop and inspect the result (be it the passphrase we were looking for or some error). Here it goes:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="va">crack_maybe=$(</span><span class="fu">cat</span> <span class="op">&lt;&lt;&#39;EOF&#39;</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">    echo PASS | cryptsetup open --test-passphrase ./encrypted-file</a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">    rc=$?</a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">    if [ &quot;$rc&quot; -ne &quot;2&quot; ]; then</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">    echo &quot;return code $rc on input PASS&quot;</a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">    exit 255</a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    fi</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">EOF</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">)</a></code></pre></div>
+<p>We’re storing the procedure in some shell variable so that we can pass it to <code>xargs</code>, for instance:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb14-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-(@animals.txt)-bat(t)?ery-sta(p|b)le&#39;</span> \</a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">    <span class="kw">|</span> <span class="fu">xargs</span> -L 1 -I PASS sh -c <span class="st">&#39;$crack_maybe&#39;</span></a></code></pre></div>
+<p>Here’s what happens: <code>stutter</code> feeds potential passphrases to <code>xargs</code>, which calls <code>crack_maybe</code> after having replaced all the occurences of <code>PASS</code> with the potential passphrase. If <code>cryptsetup</code> returns anything else than <code>2</code>, we exit with <code>exit 255</code>, which is basically the only way to tell <code>xargs</code> to stop (otherwise we’d keep going even though we’ve errored out or found the passphrase). Note that this has a hacky feel about it. We’re threading the input in and out of stdout which is not very clean, and it’ll most likely fail on bad input (if your input contains a single-quote character for instance, <code>xargs</code> will complain about it). However it’s enough for my use case.</p>
+<p>Not bad, but not parallel either:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb15-1" data-line-number="1">$ <span class="ex">stutter</span> <span class="st">&#39;correct-(@animals.txt)-bat(t)?ery-sta(p|b)le&#39;</span> \</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">    <span class="kw">|</span> <span class="ex">parallel</span> --pipe --halt now,fail=1 \</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">    <span class="st">&quot; xargs -n 1 -I PASS sh -c &#39;</span><span class="va">$crack_maybe</span><span class="st">&#39;&quot;</span></a></code></pre></div>
+<p>Here it is, the program that’ll hopefully help us find our forgotten passphrase! Here we tell <code>parallel</code> to <code>--pipe</code> the lines to <code>xargs</code> (rather than passing them as an extra argument) and to <code>--halt</code> on the first error, stopping all the processes immediately (because most likely we’ll want to inspect that “error” because it is the passphrase we’re looking for).</p>
+<h2 id="the-end">The end</h2>
+<p>If you’re interested in reproducing this, I’ve wrapped that in a script (available as a <a href="https://gist.github.com/nmattia/8d3bca0540bf0ffca8c26669051965e4">gist</a> as well):</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="co">#!/usr/bin/env bash</span></a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="co"># crack.sh</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4"><span class="kw">set</span> <span class="ex">-e</span></a>
+<a class="sourceLine" id="cb16-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6"><span class="va">the_pattern=$1</span></a>
+<a class="sourceLine" id="cb16-7" data-line-number="7"><span class="co"># We need to export because xargs runs in a subshell</span></a>
+<a class="sourceLine" id="cb16-8" data-line-number="8"><span class="bu">export</span> <span class="va">the_file=$2</span></a>
+<a class="sourceLine" id="cb16-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb16-10" data-line-number="10"><span class="kw">if</span><span class="bu"> [</span> <span class="ot">-z</span> <span class="st">&quot;</span><span class="va">${the_pattern}</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb16-11" data-line-number="11">  <span class="bu">echo</span> pattern missing</a>
+<a class="sourceLine" id="cb16-12" data-line-number="12">  <span class="bu">exit</span> 1</a>
+<a class="sourceLine" id="cb16-13" data-line-number="13"><span class="kw">fi</span></a>
+<a class="sourceLine" id="cb16-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb16-15" data-line-number="15"><span class="kw">if</span><span class="bu"> [</span> <span class="ot">-z</span> <span class="st">&quot;</span><span class="va">${the_file}</span><span class="st">&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb16-16" data-line-number="16">  <span class="bu">echo</span> file missing</a>
+<a class="sourceLine" id="cb16-17" data-line-number="17">  <span class="bu">exit</span> 1</a>
+<a class="sourceLine" id="cb16-18" data-line-number="18"><span class="kw">fi</span></a>
+<a class="sourceLine" id="cb16-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb16-20" data-line-number="20"><span class="va">crack_maybe=$(</span><span class="fu">cat</span> <span class="op">&lt;&lt;&#39;EOF&#39;</span></a>
+<a class="sourceLine" id="cb16-21" data-line-number="21">    echo PASS | cryptsetup open --test-passphrase ${the_file}</a>
+<a class="sourceLine" id="cb16-22" data-line-number="22">    rc=$?</a>
+<a class="sourceLine" id="cb16-23" data-line-number="23">    if [ &quot;$rc&quot; -ne &quot;2&quot; ]; then</a>
+<a class="sourceLine" id="cb16-24" data-line-number="24">    echo &quot;return code $rc on input PASS&quot;</a>
+<a class="sourceLine" id="cb16-25" data-line-number="25">    exit 255</a>
+<a class="sourceLine" id="cb16-26" data-line-number="26">    fi</a>
+<a class="sourceLine" id="cb16-27" data-line-number="27">EOF</a>
+<a class="sourceLine" id="cb16-28" data-line-number="28">)</a>
+<a class="sourceLine" id="cb16-29" data-line-number="29"></a>
+<a class="sourceLine" id="cb16-30" data-line-number="30">echo &quot;starting...&quot;</a>
+<a class="sourceLine" id="cb16-31" data-line-number="31">stutter ${the_pattern} \</a>
+<a class="sourceLine" id="cb16-32" data-line-number="32">    | parallel --ungroup --block-size 1k --progress --pipe --halt now,fail=1 \</a>
+<a class="sourceLine" id="cb16-33" data-line-number="33">    &quot; xargs -n 1 -I PASS sh -c &#39;$crack_maybe&#39;&quot;</a>
+<a class="sourceLine" id="cb16-34" data-line-number="34">echo &quot;Done.&quot;</a></code></pre></div>
+<p>and a <a href="https://nixos.org/nix/"><code>nix</code></a> file (available as a <a href="https://gist.github.com/nmattia/3752d1b678ca5b54fa68102c17964558">gist</a> as well):</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode nix"><code class="sourceCode bash"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="co"># shell.nix</span></a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">{<span class="ex">anyPkgs</span> ? import <span class="op">&lt;</span>nixpkgs<span class="op">&gt;</span> { }}:</a>
+<a class="sourceLine" id="cb17-3" data-line-number="3"><span class="bu">let</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">  <span class="ex">pkgs</span> = import (anyPkgs.fetchFromGitHub {</a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">      <span class="ex">owner</span> = <span class="st">&quot;NixOS&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">      <span class="ex">repo</span> = <span class="st">&quot;nixpkgs&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">      <span class="fu">rev</span> = <span class="st">&quot;deec3c1dae62e8345451cd8c4ad41134ab95e88d&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">      <span class="ex">sha256</span> = <span class="st">&quot;1l951xzklxfi2c161mcrps9dfsq76sj8fgq8d60y093bry66d3yc&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">    }) <span class="dt">{}</span>;</a>
+<a class="sourceLine" id="cb17-10" data-line-number="10">  <span class="ex">ghc</span> = pkgs.haskell.compiler.ghc7103<span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-11" data-line-number="11">  <span class="co"># tweak haskellSrc2nix to disable (failing) tests</span></a>
+<a class="sourceLine" id="cb17-12" data-line-number="12">  <span class="ex">haskellSrc2nix</span> = { name, src }:</a>
+<a class="sourceLine" id="cb17-13" data-line-number="13">    <span class="ex">pkgs.stdenv.mkDerivation</span></a>
+<a class="sourceLine" id="cb17-14" data-line-number="14">      <span class="kw">{</span> <span class="ex">name</span> = <span class="st">&quot;cabal2nix-</span><span class="va">${name}</span><span class="st">&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-15" data-line-number="15">        <span class="ex">buildInputs</span> = [ pkgs.cabal2nix ]<span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-16" data-line-number="16">        <span class="ex">phases</span> = [<span class="st">&quot;installPhase&quot;</span>]<span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-17" data-line-number="17">        <span class="ex">LANG</span> = <span class="st">&quot;en_US.UTF-8&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-18" data-line-number="18">        <span class="ex">LOCALE_ARCHIVE</span> = pkgs.lib.optionalString pkgs.stdenv.isLinux <span class="st">&quot;</span><span class="va">${pkgs</span><span class="er">.glibcLocales</span><span class="va">}</span><span class="st">/lib/locale/locale-archive&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-19" data-line-number="19">        <span class="ex">installPhase</span> = <span class="st">&#39;&#39;</span></a>
+<a class="sourceLine" id="cb17-20" data-line-number="20">          <span class="bu">export</span> <span class="va">HOME=</span><span class="st">&quot;</span><span class="va">$TMP</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb17-21" data-line-number="21">          <span class="fu">mkdir</span> -p <span class="st">&quot;</span><span class="va">$out</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb17-22" data-line-number="22">          <span class="ex">cabal2nix</span> --no-check --compiler=<span class="va">${ghc</span><span class="er">.name</span><span class="va">}</span> --system=<span class="va">${pkgs</span><span class="er">.stdenv.system</span><span class="va">}</span> <span class="st">&quot;</span><span class="va">${src}</span><span class="st">&quot;</span> <span class="op">&gt;</span> <span class="st">&quot;</span><span class="va">$out</span><span class="st">/default.nix&quot;</span></a>
+<a class="sourceLine" id="cb17-23" data-line-number="23">        <span class="st">&#39;&#39;</span>;</a>
+<a class="sourceLine" id="cb17-24" data-line-number="24">      <span class="kw">}</span>;</a>
+<a class="sourceLine" id="cb17-25" data-line-number="25">  <span class="ex">callCabal2nixNoCheck</span> = name: src: pkgs.haskellPackages.callPackage (haskellSrc2nix { inherit src name<span class="kw">;</span> });</a>
+<a class="sourceLine" id="cb17-26" data-line-number="26">  <span class="ex">snipcheck</span> = callCabal2nixNoCheck <span class="st">&quot;snipcheck&quot;</span></a>
+<a class="sourceLine" id="cb17-27" data-line-number="27">    <span class="kw">(</span> <span class="ex">pkgs.fetchFromGitHub</span></a>
+<a class="sourceLine" id="cb17-28" data-line-number="28">        <span class="kw">{</span>  <span class="ex">owner</span>  = <span class="st">&quot;nmattia&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-29" data-line-number="29">           <span class="ex">repo</span>   = <span class="st">&quot;snipcheck&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-30" data-line-number="30">           <span class="fu">rev</span>    = <span class="st">&quot;ed2d586986fab3d781a388c314d18b01527b2d51&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-31" data-line-number="31">           <span class="ex">sha256</span> = <span class="st">&quot;15hsgv9wz3l6q9533azf62ly5y5cscsi18w2nm5bfzh6pilzfdrb&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-32" data-line-number="32">        <span class="kw">}</span></a>
+<a class="sourceLine" id="cb17-33" data-line-number="33">    <span class="kw">)</span> <span class="kw">{</span> <span class="kw">}</span>;</a>
+<a class="sourceLine" id="cb17-34" data-line-number="34">  <span class="ex">stutter</span> = callCabal2nixNoCheck <span class="st">&quot;stutter&quot;</span></a>
+<a class="sourceLine" id="cb17-35" data-line-number="35">    <span class="kw">(</span> <span class="ex">pkgs.fetchFromGitHub</span></a>
+<a class="sourceLine" id="cb17-36" data-line-number="36">        <span class="kw">{</span> <span class="ex">owner</span>  = <span class="st">&quot;nmattia&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-37" data-line-number="37">          <span class="ex">repo</span>   = <span class="st">&quot;stutter&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-38" data-line-number="38">          <span class="fu">rev</span>    = <span class="st">&quot;bf280eee30939a0699b0ee077fc38a738509d4e6&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-39" data-line-number="39">          <span class="ex">sha256</span> = <span class="st">&quot;0mg38xqd7b2j5zh7hyjzlyw7mc0bbsp7yf6jypml8ha53p321m6s&quot;</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-40" data-line-number="40">        <span class="kw">}</span></a>
+<a class="sourceLine" id="cb17-41" data-line-number="41">    <span class="kw">)</span> <span class="kw">{</span> <span class="ex">inherit</span> snipcheck<span class="kw">;</span> <span class="kw">}</span> ;</a>
+<a class="sourceLine" id="cb17-42" data-line-number="42"><span class="kw">in</span></a>
+<a class="sourceLine" id="cb17-43" data-line-number="43"><span class="ex">pkgs.stdenv.mkDerivation</span> {</a>
+<a class="sourceLine" id="cb17-44" data-line-number="44">  <span class="va">name=</span><span class="st">&quot;hello&quot;</span>;</a>
+<a class="sourceLine" id="cb17-45" data-line-number="45">  <span class="ex">buildInputs</span> = [ stutter pkgs.cryptsetup pkgs.parallel ]<span class="kw">;</span></a>
+<a class="sourceLine" id="cb17-46" data-line-number="46">}</a></code></pre></div>
+<p>This way, if you have <code>nix</code> installed you can call <code>nix-shell</code> and run</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb18-1" data-line-number="1">$ <span class="ex">./crack.sh</span> <span class="op">&lt;</span>some-pattern<span class="op">&gt;</span> <span class="op">&lt;</span>some-partition<span class="op">&gt;</span></a></code></pre></div>
+<p>and your computer will use as many cores at it can to crack the <code>LUKS</code> passphrase of <code>&lt;some-partition&gt;</code> using <code>&lt;some-pattern&gt;</code>. Even better, you could rent a big AWS machine for a few hours and ship the job there:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="fu">rsync</span> ~/local/crack/shell.nix user@remote:/home/crack/</a>
+<a class="sourceLine" id="cb19-2" data-line-number="2"><span class="fu">rsync</span> ~/local/crack/crack.sh user@remote:/home/crack/</a>
+<a class="sourceLine" id="cb19-3" data-line-number="3"><span class="fu">rsync</span> ~/local/crack/encrypted-file user@remote:/home/crack/</a></code></pre></div>
+<p>This is basically what I did when I started writing this blog post this morning. First, I hoped that the script would actually test all the passphrases and that I didn’t miss some weird corner case that would make it skip <em>the</em> correct passphrase, or would make it fail to report a correct passphrase. Second, I also hoped that I did actually remember correctly those bits of the passphrase. My input was a bit bigger than the one presented here. My equivalent of <code>animals.txt</code> was <code>/usr/share/dict/american-english</code> which contains about 60k words. The words were tested alphabetically, and throughout the day I kept tabs on the progress. Around noon the script had already covered all the words starting with a capital letter. Around 4pm it was past the letter <code>n</code>, and at 10pm it had reached the letter <code>w</code>, still no match. Well, it turns out the missing word was <code>witch</code>, which is in the last 2 percent of the Ubuntu dictionary of English words! Still not sure how I came up with that, and also I’m glad I didn’t give up when I reached the letter <code>v</code> as I almost did (because how likely is it that it’ll be in the last 5%, right?).</p>
+<p>I surely learned a fair bit about <code>LUKS</code> and <code>GNU parallel</code> in the process, and hope you learned something too. Don’t hesitate to share your thoughts on this and please let me know if you spot something that’s not correct. Now I’ve got to go, it’s time for me to go look at childhood pictures (and pick a new passphrase).</p>]]></summary>
+</entry>
+<entry>
+    <title>Lens and Linear, 2048's logic in 22 lines</title>
+    <link href="http://www.nmattia.com/posts/2016-08-19-lens-linear-2048.html" />
+    <id>http://www.nmattia.com/posts/2016-08-19-lens-linear-2048.html</id>
+    <published>2016-08-19T00:00:00Z</published>
+    <updated>2016-08-19T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p><em>You can find this code on <a href="https://github.com/nmattia/2048-lens">Github</a> and follow along in <code>ghci</code>.</em></p>
+<p>Last week a friend of mine asked me how I would implement the game <a href="https://gabrielecirulli.github.io/2048/">2048</a> in Java (at least the update logic) and we gave it a try. It went something like this:</p>
+<ul>
+<li><p>So we need to represent the grid. I guess <code>int[][]</code> will do. Is this going to be an array of rows, or an array of columns? Either way we’ll need to stick to it. <em>huh</em></p></li>
+<li><p>Actually, it’ll be a sparse array, because not every cell will contain a value at all times. So an array of <code>Maybe int</code>. Oh right, <code>Integer</code>. We’ll need to remember to null-check. <em>huh</em></p></li>
+<li><p>The easiest would be to define the function to update a row/column once, and then apply it to the grid in different directions. Extract a row/column, process it, and place it back. Keeping track of the indices. <em>huh</em></p></li>
+</ul>
+<p>It is actually a problem that can be solved elegantly in Haskell using a few <a href="http://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Iso.html">Iso</a>s and <a href="http://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Traversal.html">Traversal</a>s. We’ll use the <a href="http://hackage.haskell.org/package/linear">linear</a> library for representing the data and the <a href="http://hackage.haskell.org/package/lens">lens</a> library for accessing it.</p>
+<h3 id="preparing-the-datatypes">Preparing the datatypes</h3>
+<p>We’ll represent our board as a <span class="math inline">4 × 4</span> matrix from linear:</p>
+<div style="text-align:center">
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">type</span> <span class="dt">Board</span> <span class="fu">=</span> <span class="dt">M44</span> (<span class="dt">Maybe</span> (<span class="dt">Sum</span> <span class="dt">Integer</span>))</a></code></pre></div>
+</div>
+<p>This is a simple, row-major matrix from linear. In order to make our life simpler we’ll define a function to display the board:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1">λ<span class="fu">:</span> <span class="kw">let</span><span class="ot"> display ::</span> <span class="dt">Board</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> (); display <span class="fu">=</span> Boxes.printBox <span class="fu">.</span> mkBox</a></code></pre></div>
+<p>I made <code>Board</code> an instance of <code>Default</code>, so we can instantiate our first board as follows:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1">λ<span class="fu">:</span> <span class="kw">let</span> board <span class="fu">=</span><span class="ot"> def ::</span> <span class="dt">Board</span></a></code></pre></div>
+<p>Let’s have a look:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">λ<span class="fu">:</span> display board</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a></code></pre></div>
+<p>Alright, nothing too exciting yet. This is simply a board filled with <code>Nothing</code>s. We’ll use this to start discovering linear’s vector and matrix representation. A matrix of type <code>M44</code> is nothing but a vector of vectors, stored in row-major order; a vector of matrix rows:</p>
+<div style="text-align:center">
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">type</span> <span class="dt">M44</span> a <span class="fu">=</span> <span class="dt">V4</span> (<span class="dt">V4</span> a)  <span class="co">-- Defined in ‘Linear.Matrix’</span></a></code></pre></div>
+</div>
+<p>The library has four very basic lenses for indexing into a vector: <code>_x</code>, <code>_y</code>, <code>_z</code> and <code>_w</code>. Let’s go to the <em>second row</em> (<code>_y</code>) of our board and set the <em>fourth element</em> (<code>_w</code>):</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">λ<span class="fu">:</span> <span class="kw">import</span> <span class="dt">Control.Lens</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> _y <span class="fu">.</span> _w <span class="fu">.~</span> (<span class="dt">Just</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dv">2</span></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb6-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb6-10" data-line-number="10"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a></code></pre></div>
+<p>And it’s just that easy! Linear has a few other lenses for accessing elements and even vectors inside matrices. I definitely recommend checking it out.</p>
+<h3 id="lines-of-logic">22 Lines of logic</h3>
+<p>Let’s get back to our game. We first need an update function for the rows/columns. The game 2048 actually does not care about empty cells, wherever they are, it’ll just ignore them:</p>
+<div style="text-align:center">
+<pre><code>2 X 2 X             X X X 4
+-------     ---&gt;    -------
+X X 2 2             X X X 4</code></pre>
+</div>
+<p>In this small example the user swiped right, and even though the rows differed, the result was the same (it’s not injective). We’ll simply take a list containing the non-empty cells as an input, and output a list of the resulting non-empty cells. Here are a few examples:</p>
+<pre><code>[2, 2]    -&gt; [4]
+[1, 2, 2] -&gt; [1, 4]
+[2, 1, 2] -&gt; [2, 1, 2]
+[2, 2, 2] -&gt; [4, 2]</code></pre>
+<p>We’ll specify some rules that might not correspond exactly to what the original game uses, but that will be good enough for us. When traversing a list:</p>
+<div style="text-align:center">
+<p><em>If two neighbors are equal, replace them by their sum.</em></p>
+</div>
+<p>The above is easily translated to Haskell code:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">merge ::</span> (<span class="dt">Eq</span> a, <span class="dt">Monoid</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a]</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">merge (x<span class="fu">:</span>x&#39;<span class="fu">:</span>xs) <span class="fu">|</span> x <span class="fu">==</span> x&#39; <span class="fu">=</span> (x <span class="fu">&lt;&gt;</span> x&#39;) <span class="fu">:</span> merge xs</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">merge (x<span class="fu">:</span>xs)              <span class="fu">=</span> x <span class="fu">:</span> merge xs</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">merge []                  <span class="fu">=</span> []</a></code></pre></div>
+<p><em>Note that we’ve used a slightly more abstract version than <code>[Int] -&gt; [Int]</code>. This is useful for several reasons. For instance you might not have decided yet what type you are going to use to represent your cells (Int? Integer? An enumeration of the powers of two?). Also you might want to add a UI. In this case you will want to remember which cells were merged together so that you can play an animation. Below we will be using <code>Sum Integer</code>, the integers with addition as the monoidal composition (<code>&lt;&gt;</code>). </em></p>
+<p>There’s not much room for error. GHC infers that we have covered all input cases, and we only need to make sure that the code reflects the rule above. We can open up <code>ghci</code> and verify with our (limited) test-suite:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">[<span class="dv">4</span>]</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">λ<span class="fu">:</span> merge [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">[<span class="dv">1</span>, <span class="dv">4</span>]</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">[<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">2</span>]</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
+<a class="sourceLine" id="cb10-11" data-line-number="11">[<span class="dv">4</span>, <span class="dv">2</span>]</a></code></pre></div>
+<p>Now we need to apply <code>merge</code> to different parts of the board. This is where the <a href="http://hackage.haskell.org/package/lens">lens</a> library comes in handy. More importantly <a href="http://hackage.haskell.org/package/linear">linear</a>’s good support for various types of lenses, particularly <code>Iso</code>s and <code>Traversal</code>s. Here’s my (instinctive) understanding of those:</p>
+<ul>
+<li>If you need to go back and forth between two datatypes <code>a</code> and <code>b</code>, you’ll need an <code>Iso' a b</code>.</li>
+<li>If you need to get several <code>b</code>s from a datatype <code>a</code>, you’ll need a <code>Traversal' a b</code>.</li>
+</ul>
+<p>Earlier we prepared a <code>Board</code>. Now we have a function that operates on <code>[a]</code>. We’ll want to traverse our board to get lists. We’ll want a <code>Traversal' Board [a]</code>. Or rather several <code>Traversal' Board [a]</code>, one for each of the four orientations:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1">rows, wors, cols,<span class="ot"> locs ::</span> <span class="dt">Traversal&#39;</span> (<span class="dt">M44</span> (<span class="dt">Maybe</span>  a)) [a]</a></code></pre></div>
+<p>The various directions are represented here:</p>
+<p><img src="/images/rows-wors-cols-locs.jpg" style="width:512px;padding:15px" /></p>
+<h3 id="setting-up-our-lenses">Setting up our lenses</h3>
+<p>Let’s start with <code>rows</code>. Once again, the type <code>M44</code> is nothing but a vector of vectors, or a <code>V4</code> of <code>V4</code>s.</p>
+<p><img src="/images/v4-v4-m44.jpg" style="width:512px;padding:15px" /></p>
+<p>The vector type <code>V4</code> is an instance of <a href="https://hackage.haskell.org/package/base-4.9.0.0/docs/Data-Traversable.html">Traversable</a> (not <em>Traversal</em>, which is a type) so we can use <code>traverse</code>:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">λ<span class="fu">:</span> <span class="fu">:</span>t traverse</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">traverse<span class="ot"> ::</span> (<span class="dt">Applicative</span> f, <span class="dt">Traversable</span> t) <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> f b) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> f (t b)</a></code></pre></div>
+<p>Simply put, <code>traverse</code> says</p>
+<div style="text-align:center">
+<p>If your <code>t</code> is <code>Traversable</code>, I’ll give you:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="dt">Traversal&#39;</span> (t a) a</a></code></pre></div>
+</div>
+<p>Since <code>M44 a</code> is <code>V4 (V4 a))</code> it says:</p>
+<div style="text-align:center">
+<p>Your <code>V4</code> is <code>Traversable</code>, so I’ll give you:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="dt">Traversal&#39;</span> (<span class="dt">M44</span> (<span class="dt">Maybe</span> a)) (<span class="dt">V4</span> (<span class="dt">Maybe</span> a))</a></code></pre></div>
+</div>
+<p>Good, so now we know how to get/set/act on each row of our board independently. Problem is that when traversing it, we are given the rows as <code>V4 (Maybe a)</code>s. But our function <code>merge</code> works on <code>[a]</code>s! Here come the Isos. We need an Iso that allows us to go back and forth between <code>V4 (Maybe a)</code> and <code>[a]</code>. The lens library comes with a handy function <code>iso</code> which builds an <code>Iso</code> from a pair of inverse functions. Here’s what we’ll use:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="ot">list ::</span> <span class="dt">Iso&#39;</span> (<span class="dt">V4</span> (<span class="dt">Maybe</span> a)) [a]</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">list <span class="fu">=</span> iso toList fromList</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">    toList v <span class="fu">=</span> reverse <span class="fu">$</span> catMaybes <span class="fu">$</span> foldl (flip (<span class="fu">:</span>)) [] v</a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">    fromList (<span class="ot">xs ::</span> [a]) <span class="fu">=</span> <span class="dt">V4</span> (xs<span class="fu">^?</span>ix <span class="dv">0</span>) (xs<span class="fu">^?</span>ix <span class="dv">1</span>) (xs<span class="fu">^?</span>ix <span class="dv">2</span>) (xs<span class="fu">^?</span>ix <span class="dv">3</span>)</a></code></pre></div>
+<p>We have two operations here: <code>toList</code> and <code>fromList</code>. The first one simply copies all the <code>Just</code> values of a <code>V4</code> into a list, that is</p>
+<div style="text-align:center">
+<div class="sourceCode" id="cb16"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">toList ::</span> <span class="dt">V4</span> (<span class="dt">Maybe</span> a) <span class="ot">-&gt;</span> [a]</a></code></pre></div>
+</div>
+<p>whereas, on the other hand, <code>fromList</code> recreates a vector from a list. Since there can be fewer than four values in a list, <code>fromList</code> adds as many <code>Just</code>s as possible to the <code>V4</code>, and fill the rest with <code>Nothing</code>s. You will notice that this also takes care of “shifting” the values to the beginning of the vector.</p>
+<p>And, believe it or not, we’re almost done implementing our <code>rows</code> function. Here’s the last bit:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1">rows <span class="fu">=</span> traverse <span class="fu">.</span> list</a></code></pre></div>
+<p>We traverse our matrix one row at a time, but before handing the row to the caller, we transform it to a list using <code>toList</code>. And when we’re handed back a list, we insert it in the matrix as a row using <code>fromList</code>. Let’s see the result by setting all rows to <code>[1,2,3]</code>:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> rows <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb18-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb18-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb18-6" data-line-number="6"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb18-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb18-8" data-line-number="8"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a></code></pre></div>
+<h3 id="for-a-few-isos-more">For a few Isos more</h3>
+<p>Now, let’s get started on <code>wors</code>, which should give us the reversed rows (when reading a row we start from the right-most element). The lens library has another handy abstraction: <a href="https://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Iso.html#t:Reversing">Reversing</a>. Any type that is an instance of <code>Reversing</code> gets the <code>reversed</code> iso for free. Let’s make <code>V4</code> an instance of <code>Reversing</code>:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Reversing</span> (<span class="dt">V4</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">  reversing v <span class="fu">=</span> <span class="dt">V4</span> (v<span class="fu">^.</span>_w) (v<span class="fu">^.</span>_z) (v<span class="fu">^.</span>_y) (v<span class="fu">^.</span>_x)</a></code></pre></div>
+<p>and <code>wors</code> can now be implemented:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">wors <span class="fu">=</span> traverse <span class="fu">.</span> reversed <span class="fu">.</span> list</a></code></pre></div>
+<p>Facile, non? We get (vector) rows through <code>traverse</code>, reverse them, and <em>then</em> turn them into a list.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> wors <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
+<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
+<a class="sourceLine" id="cb21-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
+<a class="sourceLine" id="cb21-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb21-6" data-line-number="6"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
+<a class="sourceLine" id="cb21-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb21-8" data-line-number="8"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a></code></pre></div>
+<p>On to the next one: <code>cols</code>. Getting columns is easy: transpose the matrix. The columns of the original matrix are now the rows of the transposed matrix. Earlier we used the <code>iso</code> function to build an <code>Iso'</code> between <code>V4 (Maybe a)</code> and <code>[a]</code>. We’ll use it again to create an <code>Iso</code> between a matrix and its transposed self:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">transposed ::</span> <span class="dt">Iso&#39;</span> (<span class="dt">M44</span> a) (<span class="dt">M44</span> a)</a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">transposed <span class="fu">=</span> iso transpose transpose</a></code></pre></div>
+<p><em>(If you know of a function <code>f = join iso</code>, please ping me. I couldn’t find it.)</em></p>
+<p>And now the two implementations for the columns and reversed columns:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1">cols <span class="fu">=</span> transposed <span class="fu">.</span> rows</a>
+<a class="sourceLine" id="cb23-2" data-line-number="2">locs <span class="fu">=</span> transposed <span class="fu">.</span> wors</a></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> cols <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
+<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span></a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">          </a>
+<a class="sourceLine" id="cb24-4" data-line-number="4"><span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span></a>
+<a class="sourceLine" id="cb24-5" data-line-number="5">          </a>
+<a class="sourceLine" id="cb24-6" data-line-number="6"><span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span></a>
+<a class="sourceLine" id="cb24-7" data-line-number="7">          </a>
+<a class="sourceLine" id="cb24-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb24-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb24-10" data-line-number="10">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> locs <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
+<a class="sourceLine" id="cb24-11" data-line-number="11"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
+<a class="sourceLine" id="cb24-12" data-line-number="12">          </a>
+<a class="sourceLine" id="cb24-13" data-line-number="13"><span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span></a>
+<a class="sourceLine" id="cb24-14" data-line-number="14">          </a>
+<a class="sourceLine" id="cb24-15" data-line-number="15"><span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span></a>
+<a class="sourceLine" id="cb24-16" data-line-number="16">          </a>
+<a class="sourceLine" id="cb24-17" data-line-number="17"><span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span></a></code></pre></div>
+<h3 id="extra-lens-goodness">Extra lens goodness</h3>
+<p>And that’s it, we’ve implemented the logic of the game! Believe it or not, it didn’t take us more than 22 lines of code. But make no mistake. Lenses aren’t for code golfing. They’re just well-crafted, type-safe abstractions. A lot of code was already written on top of those, meaning there’s a lot of stuff you can reuse. Also, when used properly, they should allow you to write less of your own code. I believe that (other things being equal) it is always better: less room for mistakes, less code to maintain, less code newcomers have to understand.</p>
+<p>As opposed to the simplistic Java given in the introduction:</p>
+<ul>
+<li><p>We don’t care (too much) if a matrix is a vector of rows or a vector or columns (row-major or column-major). The Linear library abstracts this for us and gives us a few functions to use in order to traverse the matrix.</p></li>
+<li><p>No null checks.</p></li>
+<li><p>Thanks to lens, we haven’t used a single index explicitly. All the getting, updating and setting of values was declarative. Each indexing of an element has its own function: if an element is not there, the function is not there.</p></li>
+</ul>
+<p>Finally, we can wire everything together, making use this time of lens’ support for actions in the state monad:</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Action</span> <span class="fu">=</span> <span class="dt">Up</span> <span class="fu">|</span> <span class="dt">Down</span> <span class="fu">|</span> <span class="dt">Left</span> <span class="fu">|</span> <span class="dt">Right</span></a>
+<a class="sourceLine" id="cb25-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb25-3" data-line-number="3"><span class="ot">play ::</span> (<span class="dt">MonadState</span> <span class="dt">Board</span> m) <span class="ot">=&gt;</span> <span class="dt">Action</span> <span class="ot">-&gt;</span> m ()</a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">play <span class="dt">Up</span>    <span class="fu">=</span> cols <span class="fu">%=</span> merge</a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">play <span class="dt">Down</span>  <span class="fu">=</span> locs <span class="fu">%=</span> merge</a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">play <span class="dt">Left</span>  <span class="fu">=</span> rows <span class="fu">%=</span> merge</a>
+<a class="sourceLine" id="cb25-7" data-line-number="7">play <span class="dt">Right</span> <span class="fu">=</span> wors <span class="fu">%=</span> merge</a></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Puzzle solving in Haskell</title>
+    <link href="http://www.nmattia.com/posts/2016-07-31-bfs-tree.html" />
+    <id>http://www.nmattia.com/posts/2016-07-31-bfs-tree.html</id>
+    <published>2016-07-31T00:00:00Z</published>
+    <updated>2016-07-31T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p><em>This is a literate Haskell file. You can find this code on <a href="https://github.com/nmattia/nmattia.com/blob/master/posts/2016-07-31-bfs-tree.lhs">Github</a> and follow along in <code>ghci</code>.</em></p>
+<p>In order to warm up for a round of interviews next week, I’ve been playing around with coding puzzles. Those are usually solved using imperative languages, and I thought I’d have a go at them using Haskell. I’ll share today’s experience, which hopefully will convince you that purely functional languages are (sometimes) suitable for puzzles.</p>
+<p>====Disclaimer: <em>There is probably nothing new here. Also, there might be better solutions to solve the problem. I like this solution because it gave me an excuse to showcase Haskell’s laziness. Feel free to ping me if you come up with something better.</em></p>
+<p>====The puzzle Let’s start with the problem itself. You are given a number, <span class="math inline"><em>x</em><sub>0</sub></span>, and a target, <span class="math inline"><em>x</em><sub><em>f</em></sub></span>. You are allowed two functions: <span class="math inline"><em>f</em>(<em>x</em>) = 2<em>x</em> + 1</span> and <span class="math inline"><em>g</em>(<em>x</em>) = 3<em>x</em> + 1 .</span></p>
+<p>Give either the minimal number of applications of <span class="math inline"><em>f</em></span> and <span class="math inline"><em>g</em></span> that you need in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub></span> from <span class="math inline"><em>x</em><sub>0</sub></span>, or state that one cannot reach <span class="math inline"><em>x</em><sub><em>f</em></sub></span> from <span class="math inline"><em>x</em><sub>0</sub></span>.</p>
+<p>For instance:</p>
+<ul>
+<li><p>in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 4</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>, you need one application:</p>
+<p><span class="math inline"><em>x</em><sub><em>f</em></sub> = 4 = 3 ⋅ 1 + 1 = <em>g</em>(1) = <em>g</em>(<em>x</em><sub>0</sub>)</span></p></li>
+<li><p>in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 10</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>, you need two applications:</p>
+<p><span class="math inline"><em>x</em><sub><em>f</em></sub> = 10 = 3 ⋅ 3 + 1 = <em>g</em>(3) = <em>g</em>(2 ⋅ 1 + 1) = <em>g</em> ∘ <em>f</em>(1) = <em>g</em> ∘ <em>f</em>(<em>x</em><sub>0</sub>)</span></p></li>
+<li><p>you cannot reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 8</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>.</p></li>
+</ul>
+<p>I like to think of the values as a tree where each node has degree <span class="math inline">2</span>. To get to a left child, apply <span class="math inline"><em>f</em></span>. To get to a right child, apply <span class="math inline"><em>g</em></span>. In this case the answer is equal to the depth of <span class="math inline"><em>x</em><sub><em>f</em></sub></span>, where the root is <span class="math inline"><em>x</em><sub>0</sub></span>. Now you just need to traverse the tree, starting from the root, until you find <span class="math inline"><em>x</em><sub><em>f</em></sub></span>. Using the following observation:</p>
+<ul>
+<li><span class="math inline">4 ⋅ <em>x</em> &gt; 3 ⋅ <em>x</em> + 1, ∀<em>x</em> &gt; 1</span></li>
+</ul>
+<p>we know that we can safely stop whenever we hit a node with depth <span class="math inline"><em>d</em> &gt; 4 ⋅ <em>x</em></span>.</p>
+<p><img src="/images/topcoder-tree.jpg" style="width:512px;padding:15px" /></p>
+<p>Clearly the number of nodes traversed (assuming a BFS) is proportional to the exponential of the depth (it is actually <span class="math inline">2<sup><em>d</em></sup></span>). But we also know that there is at least a factor <span class="math inline">2</span> between each “layer” (<span class="math inline">∀<em>x</em> &gt; 0, <em>f</em>(<em>x</em>) &gt; 2<em>x</em></span>). So we can conclude that <span class="math inline"><em>x</em><sub><em>f</em></sub> − <em>x</em><sub>0</sub> &gt; 2<sup><em>d</em></sup></span> and so our algorithm should run in <span class="math inline"><em>O</em>(<em>x</em><sub><em>f</em></sub> − <em>x</em><sub>0</sub>)</span>. Now let’s write some code.</p>
+<p>====The code</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">import</span> <span class="dt">System.Environment</span> (getArgs)</a></code></pre></div>
+<p>First we need to define a suitable tree structure. We define a binary tree in which each node holds some data. The data we will record is the node’s depth (or distance from the root) and a value:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Tree</span> <span class="fu">=</span> <span class="dt">T</span> {<span class="ot"> depth  ::</span> <span class="fu">!</span><span class="dt">Int</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">              ,<span class="ot"> value  ::</span> <span class="fu">!</span><span class="dt">Int</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">              ,<span class="ot"> l      ::</span> <span class="dt">Tree</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">              ,<span class="ot"> r      ::</span> <span class="dt">Tree</span> }</a></code></pre></div>
+<p>We keep the links to the children lazy so that we can build an infinite tree. Whenever we create a node it is very likely that we will need the data it contains, so we keep the data strict. This is a typical lazy spine/strict leaves structure, and has the added bonus of easily allowing GHC to unpack the <code>Int</code>s.</p>
+<p>Now, let’s build that tree:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="ot">mkTree ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">mkTree <span class="fu">=</span> go <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">    go d v <span class="fu">=</span> <span class="dt">T</span> { depth <span class="fu">=</span> d</a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">               , value <span class="fu">=</span> v</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">               , l     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">               , r     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">3</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>) }</a></code></pre></div>
+<p>Note that we don’t have to limit ourselves to the functions <span class="math inline"><em>f</em></span> and <span class="math inline"><em>g</em></span>. Here’s, for instance, a complete binary tree:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="co">-- As an example</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ot">completeBinaryTree ::</span> <span class="dt">Tree</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">completeBinaryTree <span class="fu">=</span> go <span class="dv">0</span> <span class="dv">1</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">    go d v <span class="fu">=</span> <span class="dt">T</span> { depth <span class="fu">=</span> d</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">               , value <span class="fu">=</span> v</a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">               , l     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v )</a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">               , r     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>) }</a></code></pre></div>
+<p>This second tree would look like this:</p>
+<p><img src="/images/complete-binary-tree.jpg" style="width:512px;padding:15px" /></p>
+<p>Now comes the fun part, the breadth-first search (note that you typically don’t want to do a depth-first on an infinite tree). A typical implementation of a BFS uses a queue. It would go something like this:</p>
+<ul>
+<li>Dequeue a node from the queue and append it to an output list.</li>
+<li>Enqueue all this node’s children.</li>
+<li>Repeat until your queue is empty.</li>
+</ul>
+<p>This is a simplified version that will work just fine for a tree (we don’t need to check whether or not we have already visited the current node). If you know your functional data structures, you’ll recognize a typical queue:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">data</span> <span class="dt">Queue</span> a <span class="fu">=</span> <span class="dt">Queue</span> {<span class="ot"> front ::</span> [a]</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">                     ,<span class="ot"> back  ::</span> [a] }</a></code></pre></div>
+<p>Whenever you want to enqueue a value, you cons it on <code>back</code>. Whenever you want to dequeue a value, you uncons it from front. And whenever front is empty you replace it with back (in reverse order). This gives you worst-case <code>O(1)</code> for enqueue and dequeue operations, and <code>O(n)</code> for tail (that’s where you’ll reverse the back, see Okasaki’s <a href="https://www.cs.cmu.edu/~rwh/theses/okasaki.pdf">Purely Functional Data Structures</a> for a good overview).</p>
+<p>====The search</p>
+<p>Easy enough. Now we just need a <code>State Queue</code> monad, traverse the tree, and update our queue every time, discarding the old one. Also, we’ll need a <code>Writer [Tree]</code> to output the nodes. Right? Well, in our case we can do much simpler. We will simply use a list and take advantage of the language’s laziness. We’ll take a list of nodes and return a list of their children. It will extract the left and right children of a node, then move to the next node, repeat the process and concat the result.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">children <span class="fu">=</span> concatMap (\t <span class="ot">-&gt;</span> [l t, r t]) nodes</a></code></pre></div>
+<p>All good. Now we just need to bootstrap it:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">bfs ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Tree</span>]</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">bfs root <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">    nodes <span class="fu">=</span> root <span class="fu">:</span> children</a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    children <span class="fu">=</span> concatMap (\t <span class="ot">-&gt;</span> [l t, r t]) nodes</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">  <span class="kw">in</span> nodes</a></code></pre></div>
+<p>Let’s check it out on our binary tree in <code>ghci</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">λ<span class="fu">:</span> value <span class="fu">&lt;$&gt;</span> take <span class="dv">10</span> (bfs completeBinaryTree)</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">[<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>,<span class="dv">7</span>,<span class="dv">8</span>,<span class="dv">9</span>,<span class="dv">10</span>]</a></code></pre></div>
+<p>Sweet! When <code>concatMap</code> is called the first time, it’ll split the root into its left and right children. This means that the root’s left child is now the second element in <code>nodes</code>. When <code>concatMap</code> has to work again, it’ll spit out first the left child’s own children, then the right child’s own children, etc, concating the children lists every time. Looks like we have a breadth-first search using a list instead of a queue! And added bonus, we got rid of <code>Queue</code>’s <code>O(n)</code> worst case, since we never even <code>tail</code>!</p>
+<p><img src="/images/queue-moving-window.jpg" style="width:512px;padding:15px" /></p>
+<p>In this case, a queue is nothing more than a window, or slice, of a list. Every time we enqueue, we expand the window to the right. Every time we dequeue, we shrink the window on the left. This is unfortunately not an all purpose queue. Once the first cell of the list is created, all the remaining ones must be determined already.</p>
+<p>The only thing left to do is to traverse the nodes produced by <code>bfs</code> until we hit either <span class="math inline"><em>x</em><sub><em>f</em></sub></span> or a number that we know is too large:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">distance ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">distance x0 xf <span class="fu">=</span> go nodes</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">    nodes <span class="fu">=</span> bfs <span class="fu">$</span> mkTree x0</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    go (t<span class="fu">:</span>ts) <span class="fu">|</span> value t <span class="fu">==</span> xf     <span class="fu">=</span> <span class="dt">Just</span> <span class="fu">$</span> depth t</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">              <span class="fu">|</span> value t <span class="fu">&gt;</span> <span class="dv">4</span> <span class="fu">*</span> xf  <span class="fu">=</span> <span class="dt">Nothing</span> <span class="co">-- from analysis</span></a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">              <span class="fu">|</span> otherwise         <span class="fu">=</span> go ts</a></code></pre></div>
+<p><em>Et voilà!</em> We can go a bit fancy and add a cli (that will happily crash on you on bad input):</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  [x0, xf] <span class="ot">&lt;-</span> (read <span class="fu">&lt;$&gt;</span>) <span class="fu">&lt;$&gt;</span> getArgs</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">  print <span class="fu">$</span> distance x0 xf</a></code></pre></div>
+<p>Compiled with</p>
+<pre><code>$ ghc --make -O2 -funbox-strict-fields bfs-tree.lhs</code></pre>
+<p>the program runs to up to 10,000,000,000 under two seconds, which is not too bad. (Dell XPS 13, 2015)</p>
+<pre><code>$ time posts/2016-07-31-bfs-tree 1 3000000000
+Nothing
+posts/2016-07-31-bfs-tree 1 3000000000  0.57s user 0.13s system 99% cpu 0.708 total
+
+$time posts/2016-07-31-bfs-tree 1 6000000000
+Nothing
+posts/2016-07-31-bfs-tree 1 6000000000  1.04s user 0.19s system 99% cpu 1.230 total
+
+$ time posts/2016-07-31-bfs-tree 1 10000000000
+Nothing
+posts/2016-07-31-bfs-tree 1 10000000000  1.49s user 0.62s system 99% cpu 2.111 total</code></pre>
+<p>To get it to run on larger inputs, I suspect one would need to find a better algorithm. It would maybe even allow replacing <code>Int</code>s with <code>Integer</code>s. Once again, if you do find something, please get in touch : )</p>]]></summary>
+</entry>
+<entry>
+    <title>Parallel Computing with DNA</title>
+    <link href="http://www.nmattia.com/posts/2015-04-20-parallel-dna.html" />
+    <id>http://www.nmattia.com/posts/2015-04-20-parallel-dna.html</id>
+    <published>2015-04-20T00:00:00Z</published>
+    <updated>2015-04-20T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>DNA. Everybody knows that DNA is the blueprint by which our cells replicate. Everybody knows that Horatio Caine uses it to catch bad guys. <strong>But… what if we used DNA to build supercomputers?</strong> That is definitely science-fiction… or is it? As I was working on DNA computing, I got my fair share of people staring at me like I was crazy. Someone even asked me if I could find a way to take a bird’s DNA to grow an optimal plane out of it. <strong>I thought I would demystify it a bit.</strong></p>
+<p><img src="/images/blueprint.jpg" style="float:left;width:250px;padding:15px" /></p>
+<h3 id="a-bit-of-history">A bit of history</h3>
+<p>In 1994, <a href="https://en.wikipedia.org/wiki/Leonard_Adleman">Leonard Adleman</a> (which you may know as the <em>A</em> in <em><a href="https://en.wikipedia.org/wiki/RSA_(cryptosystem)">RSA</a></em>) showed that it was possible to <strong>solve</strong> some pretty <strong>difficult problems</strong>, just by <strong>using DNA</strong> and other cell-reproduction related stuff. <em>Wait, what?</em> Did he just recreate a Primordial-Soup-like environment, and waited until an organic supercomputer evolved from it, somehow following the rules of natural selection? Well, not exactly. But we’ll come to how things work in a minute.</p>
+<h5 id="dna-but-why">DNA… but why?</h5>
+<p>It is important to understand the reasons <em>why</em> people came to study DNA Computing. The problem Adleman was trying to solve was <a href="https://en.wikipedia.org/wiki/NP-complete"><em>really</em> difficult</a>. It is called the <em><a href="https://en.wikipedia.org/wiki/Hamiltonian_path_problem">Hamiltonian Path Problem</a></em> (but let’s call it <em>The Roadtrip Problem</em>), and it goes something like this:</p>
+<ul>
+<li>Take a map</li>
+<li>Cut out a part of the map, and you’ll be left with a few cities, linked by roads</li>
+<li>Grab a pen. Can you trace a <strong>path</strong> that goes through <strong>every city exactly once</strong>, following the roads? <img src="/images/hamilton.jpg" style="float:right;width:350px"/></li>
+</ul>
+<p>Roadtrip problem. Alright. The idea is this: <strong>the more cities</strong> you have, <strong>the longer</strong> it will take you to find out. And unfortunately, if you double the number of cities, you will probably need more than twice the amount of time to solve the new problem. And that means that if you just <strong>try every solution</strong> one after another, it is going to take an awful amount of time. Wouldn’t it be nice if you could try <strong>several</strong> of those possibilities <strong>at once</strong>?</p>
+<p>This is basically the reason why computers nowadays have more that one core working at a time. It usually goes from two to eight, the latter more often than the former. Still, if a problem takes one year to be solved on a single core, using 8-cores instead would still take a month and a half. Not that cool if you need the results to do something else, huh? Well, that’s why super computers exist, hosting 250k+ cores. Your one-year-problem now takes about two minutes.</p>
+<p><img src="/images/cities-comarison.jpg"
+style="float:left;width:350px;padding:10px"/> Sometimes even that is not sufficient (which is kind of a good thing in regards to <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">cryptography</a>, for instance). One of the <strong>fastest algorithms</strong> for solving our roadtrip problem runs in <br /><span class="math display"><em>O</em>(<em>n</em><sup>2</sup>2<sup><em>n</em></sup>)</span><br />. Basically that means that if a computer takes two thousandths of a second to solve the problem with eight cities, the same computer will need two minutes with sixteen cities, and a bit less than <strong>a week to compute a result</strong> for thirty-two cities. Most of that huge growth in time in regards of the number of cities comes from the exponential term <br /><span class="math display">2<sup><em>n</em></sup></span><br /> , and the multiplication by <br /><span class="math display"><em>n</em><sup>2</sup></span><br /> does not help at all.</p>
+<p>When scenarios like that show up, it drives some scientists mad, and sometimes gives them weird ideas. Among those is trying to solve NP-Complete problems with DNA.</p>
+<h3 id="dna-algorithms">DNA algorithms</h3>
+<p><strong>DNA strands</strong> are like little strings (or sentences) containing <strong>information</strong>, in the form of four <a href="https://en.wikipedia.org/wiki/Nucleobase">characters</a>: <strong>A</strong>, <strong>T</strong>, <strong>C</strong> and <strong>G</strong>. It happens that the characters <strong>A</strong> and <strong>T</strong> attract each other, and the same goes for <strong>C</strong> and <strong>G</strong> (if like me you can never remember which goes with which, it’s <a href="http://www.amazon.com/Gödel-Escher-Bach-Eternal-Golden/dp/0465026567">very simple</a>: <strong>A</strong>chilles and the <strong>T</strong>ortoise form a pair, and so do the <strong>C</strong>rab and his <strong>G</strong>enes). Characters of such pairs are called <em><a href="https://en.wikipedia.org/wiki/Complementarity_(molecular_biology)">complementary</a></em> to one another. If two DNA strands happen to contain sequences of complementary characters, they will attract each other, and clamp together, giving long <strong>DNA</strong> strands their <strong><a href="https://en.wikipedia.org/wiki/Nucleic_acid_double_helix">sexy shape</a></strong>.</p>
+<p>Now, let’s be serious, it’s 2015. And in 2015 you can <strong>design your DNA</strong> strands and have them produced. Let’s do exactly that (at least the design part). Bear with me for a minute, and imagine that we have our own DNA-strand-printer. Let’s design a simple DNA strand, containing a <strong><em>G</em></strong> character followed by <strong>9</strong> <strong><em>A</em></strong> characters:</p>
+<blockquote>
+<p><strong><em>GAAAAAAAAA</em></strong></p>
+</blockquote>
+<blockquote>
+<p><em>(a DNA strand, not somehow’s death throe)</em></p>
+</blockquote>
+<p>Alright. Let’s call that strand <strong><em>N</em></strong>. Also, let’s print it two thousand times. Now let’s create an other strand. It is composed of <strong>3</strong> <strong><em>T</em></strong> characters, surrounded by a <strong><em>C</em></strong> and a <strong><em>G</em></strong> :</p>
+<blockquote>
+<p><strong><em>CTTTG</em></strong></p>
+</blockquote>
+<p>We’ll print that one… let’s say ten thousand times (by the way, DNA is very tiny). Those strands we call <strong><em>d</em></strong>. Now we’ll go to the kitchen, grab a bucket, fill it up with water, and throw our twelve thousand DNA strands in it. <strong>Congratulations</strong>, you just built and programmed <strong>your first DNA computer</strong>!</p>
+<p><img src="/images/nine-minus-three.jpg" style="width:300px;float:right"/></p>
+<p>Let’s get that straight, right now: <strong>you won’t be running Minecraft on it anytime soon</strong>. But what exactly happens in the bucket? First of all, both strands contain complementary characters. The sequence <strong><em>TTT</em></strong> in <strong>d</strong> (our second strand) will tend to be attracted to any three <strong><em>A</em></strong>s in our first DNA strand <strong>N</strong>. Yet, it can do even better: the first four characters of <strong>d</strong>, namely <strong><em>CTTT</em></strong>, are a perfect complement to the first four characters of <strong>N</strong>: <strong><em>GAAA</em></strong>. They will clamp together, and leave out two tails: a simple <strong><em>G</em></strong> on one side, and <strong>6</strong> <strong><em>A</em></strong>s on the other side. Wait, <strong>this looks almost familiar…</strong></p>
+<p>Indeed, since DNA strands are flexible, the two tails will act as a new DNA strand <strong><em>GAAAAAA</em></strong>, which has the same structure as <strong>N</strong>, but with <strong>6</strong> <strong><em>A</em></strong>s instead of nine. You see where this is heading: <strong>the process will repeat itself!</strong> Another <strong>d</strong> strand will float by, and its leading <strong>C</strong> character will get hooked. Every time this happens, the number of <strong><em>A</em></strong> characters on our main string will be <strong>reduced by three!</strong> Eventually, there won’t be any <strong><em>A</em></strong> left on our strand, all covered with <strong><em>T</em></strong>s.</p>
+<p>What we just implemented is a division of <strong>9</strong> by <strong>3</strong>, effectively giving zero. The strand <strong>N</strong> encoded the number <strong>9</strong> with nine <strong><em>A</em></strong> characters, and the strand <strong>d</strong> encoded the subtraction by <strong>3</strong>, with three <strong><em>T</em></strong> characters. This is easily extended to any numbers, can be used e.g. for checking if a number is prime or not. The truly amazing part is that all the computations are <strong>(almost) completely parallel</strong>: you have <strong>thousands of pairs</strong> forming, <strong>independently</strong> of others!</p>
+<p>Of course, this is very theorethic, even though some succesful experimentation was <a href="http://www.dna.caltech.edu/~winfree/">done already</a>. It is still the very beginning of DNA computing, and the time it takes to run an algorithm exceeds by far that of a computer (if you can run the given algorithm in a first place). Yet, it is promising, and in the end theoricists don’t care that much if it will work one day.</p>
+<h3 id="my-contributions">My contributions</h3>
+<p>Last February, I completed a research project as part of my Master’s studies. I was able to provide solutions to several problems using <strong><em>DNA algorithms</em></strong>, like:</p>
+<ul>
+<li>Checking if a number is <strong>prime</strong></li>
+<li>Computing the <strong>square root</strong> of a number</li>
+<li>Implementing <strong>binary inputs</strong> for DNA problems</li>
+</ul>
+<p>and also did some analysis on how fast/how reliable such algorithms were. The improvements compared to other DNA based computing are that</p>
+<ol type="1">
+<li>it is more scalable (at least theoretically)</li>
+<li>it only uses DNA strands (Adleman, for instance, also used enzymes).</li>
+</ol>
+<p>If you are hungry for DNA algorithm knowledge, have any questions, or want to complain about anything: just drop me a word in the comments below!</p>
+<p><em>There are many problems (and solutions!) related to computing with DNA, and some of the following might be interesting to the reader:</em></p>
+<ul>
+<li>Adleman, L.M.: Molecular computation of solutions to combinatorial problems. In: Science Magazine. (November 2009)</li>
+<li>Zhang, D.Y., Winfree, E.: Control of dna strand displacement kinetics using toehold exchange. In: J A C S Articles. (June 2009)</li>
+<li>Qian, L., Winfree, E.: Scaling up digital circuit computation with dna strand displacement cascades. In: Science Magazine. (June 2011)</li>
+</ul>
+<p><em>Also, Microsoft developed <a href="http://research.microsoft.com/en-us/projects/dna/">a tool</a> for visualizing DNA computing. Have fun!</em></p>
+<script type="text/javascript"     src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+ MathJax.Hub.Config({
+     tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+     });
+     </script>]]></summary>
+</entry>
+
+</feed>

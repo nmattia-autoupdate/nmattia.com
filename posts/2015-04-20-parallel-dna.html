@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- Disable mobile scaling -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <title>Nicolas Mattia</title>
+
+        <!-- Appended '?v=X' for dirtying cache -->
+        <link rel="stylesheet" type="text/css" href="../css/default.css?v=1" />
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Varela+Round" rel="stylesheet">
+        <link rel="stylesheet" href="../css/font-awesome/css/font-awesome.min.css">
+        <link rel="alternate" type="application/atom+xml" title="nmattia Atom feed" href="../atom.xml?type=blog" />
+        <link rel="alternate" type="application/rss+xml" title="nmattia RSS feed" href="../rss.xml?type=blog" />
+    </head>
+
+    <body>
+        <div class="main">
+            <div class="header">
+                <div class="logo">
+                    <a href="../" class="home">Nicolas Mattia</br></a>
+                    <div class="links">
+                        <a href="https://www.github.com/nmattia"><i class="fa fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/nicolas-mattia/"><i class="fa fa-linkedin"></i></a>
+                        <a href="mailto:nicolas@nmattia.com"><i class="fa fa-envelope-o"></i></a>
+                    </div>
+                </div>
+                <div class="nav">
+                    <ul>
+                        <li><a href="../">home</a></li>
+                        <li><a href="../blog.html">blog</a></li>
+                        <li><a href="../about.html">about</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content">
+                <p>DNA. Everybody knows that DNA is the blueprint by which our cells replicate. Everybody knows that Horatio Caine uses it to catch bad guys. <strong>But… what if we used DNA to build supercomputers?</strong> That is definitely science-fiction… or is it? As I was working on DNA computing, I got my fair share of people staring at me like I was crazy. Someone even asked me if I could find a way to take a bird’s DNA to grow an optimal plane out of it. <strong>I thought I would demystify it a bit.</strong></p>
+<p><img src="../images/blueprint.jpg" style="float:left;width:250px;padding:15px" /></p>
+<h3 id="a-bit-of-history">A bit of history</h3>
+<p>In 1994, <a href="https://en.wikipedia.org/wiki/Leonard_Adleman">Leonard Adleman</a> (which you may know as the <em>A</em> in <em><a href="https://en.wikipedia.org/wiki/RSA_(cryptosystem)">RSA</a></em>) showed that it was possible to <strong>solve</strong> some pretty <strong>difficult problems</strong>, just by <strong>using DNA</strong> and other cell-reproduction related stuff. <em>Wait, what?</em> Did he just recreate a Primordial-Soup-like environment, and waited until an organic supercomputer evolved from it, somehow following the rules of natural selection? Well, not exactly. But we’ll come to how things work in a minute.</p>
+<h5 id="dna-but-why">DNA… but why?</h5>
+<p>It is important to understand the reasons <em>why</em> people came to study DNA Computing. The problem Adleman was trying to solve was <a href="https://en.wikipedia.org/wiki/NP-complete"><em>really</em> difficult</a>. It is called the <em><a href="https://en.wikipedia.org/wiki/Hamiltonian_path_problem">Hamiltonian Path Problem</a></em> (but let’s call it <em>The Roadtrip Problem</em>), and it goes something like this:</p>
+<ul>
+<li>Take a map</li>
+<li>Cut out a part of the map, and you’ll be left with a few cities, linked by roads</li>
+<li>Grab a pen. Can you trace a <strong>path</strong> that goes through <strong>every city exactly once</strong>, following the roads? <img src="../images/hamilton.jpg" style="float:right;width:350px" /></li>
+</ul>
+<p>Roadtrip problem. Alright. The idea is this: <strong>the more cities</strong> you have, <strong>the longer</strong> it will take you to find out. And unfortunately, if you double the number of cities, you will probably need more than twice the amount of time to solve the new problem. And that means that if you just <strong>try every solution</strong> one after another, it is going to take an awful amount of time. Wouldn’t it be nice if you could try <strong>several</strong> of those possibilities <strong>at once</strong>?</p>
+<p>This is basically the reason why computers nowadays have more that one core working at a time. It usually goes from two to eight, the latter more often than the former. Still, if a problem takes one year to be solved on a single core, using 8-cores instead would still take a month and a half. Not that cool if you need the results to do something else, huh? Well, that’s why super computers exist, hosting 250k+ cores. Your one-year-problem now takes about two minutes.</p>
+<p><img src="../images/cities-comarison.jpg" style="float:left;width:350px;padding:10px" /> Sometimes even that is not sufficient (which is kind of a good thing in regards to <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">cryptography</a>, for instance). One of the <strong>fastest algorithms</strong> for solving our roadtrip problem runs in <br /><span class="math display"><em>O</em>(<em>n</em><sup>2</sup>2<sup><em>n</em></sup>)</span><br />. Basically that means that if a computer takes two thousandths of a second to solve the problem with eight cities, the same computer will need two minutes with sixteen cities, and a bit less than <strong>a week to compute a result</strong> for thirty-two cities. Most of that huge growth in time in regards of the number of cities comes from the exponential term <br /><span class="math display">2<sup><em>n</em></sup></span><br /> , and the multiplication by <br /><span class="math display"><em>n</em><sup>2</sup></span><br /> does not help at all.</p>
+<p>When scenarios like that show up, it drives some scientists mad, and sometimes gives them weird ideas. Among those is trying to solve NP-Complete problems with DNA.</p>
+<h3 id="dna-algorithms">DNA algorithms</h3>
+<p><strong>DNA strands</strong> are like little strings (or sentences) containing <strong>information</strong>, in the form of four <a href="https://en.wikipedia.org/wiki/Nucleobase">characters</a>: <strong>A</strong>, <strong>T</strong>, <strong>C</strong> and <strong>G</strong>. It happens that the characters <strong>A</strong> and <strong>T</strong> attract each other, and the same goes for <strong>C</strong> and <strong>G</strong> (if like me you can never remember which goes with which, it’s <a href="http://www.amazon.com/Gödel-Escher-Bach-Eternal-Golden/dp/0465026567">very simple</a>: <strong>A</strong>chilles and the <strong>T</strong>ortoise form a pair, and so do the <strong>C</strong>rab and his <strong>G</strong>enes). Characters of such pairs are called <em><a href="https://en.wikipedia.org/wiki/Complementarity_(molecular_biology)">complementary</a></em> to one another. If two DNA strands happen to contain sequences of complementary characters, they will attract each other, and clamp together, giving long <strong>DNA</strong> strands their <strong><a href="https://en.wikipedia.org/wiki/Nucleic_acid_double_helix">sexy shape</a></strong>.</p>
+<p>Now, let’s be serious, it’s 2015. And in 2015 you can <strong>design your DNA</strong> strands and have them produced. Let’s do exactly that (at least the design part). Bear with me for a minute, and imagine that we have our own DNA-strand-printer. Let’s design a simple DNA strand, containing a <strong><em>G</em></strong> character followed by <strong>9</strong> <strong><em>A</em></strong> characters:</p>
+<blockquote>
+<p><strong><em>GAAAAAAAAA</em></strong></p>
+</blockquote>
+<blockquote>
+<p><em>(a DNA strand, not somehow’s death throe)</em></p>
+</blockquote>
+<p>Alright. Let’s call that strand <strong><em>N</em></strong>. Also, let’s print it two thousand times. Now let’s create an other strand. It is composed of <strong>3</strong> <strong><em>T</em></strong> characters, surrounded by a <strong><em>C</em></strong> and a <strong><em>G</em></strong> :</p>
+<blockquote>
+<p><strong><em>CTTTG</em></strong></p>
+</blockquote>
+<p>We’ll print that one… let’s say ten thousand times (by the way, DNA is very tiny). Those strands we call <strong><em>d</em></strong>. Now we’ll go to the kitchen, grab a bucket, fill it up with water, and throw our twelve thousand DNA strands in it. <strong>Congratulations</strong>, you just built and programmed <strong>your first DNA computer</strong>!</p>
+<p><img src="../images/nine-minus-three.jpg" style="width:300px;float:right" /></p>
+<p>Let’s get that straight, right now: <strong>you won’t be running Minecraft on it anytime soon</strong>. But what exactly happens in the bucket? First of all, both strands contain complementary characters. The sequence <strong><em>TTT</em></strong> in <strong>d</strong> (our second strand) will tend to be attracted to any three <strong><em>A</em></strong>s in our first DNA strand <strong>N</strong>. Yet, it can do even better: the first four characters of <strong>d</strong>, namely <strong><em>CTTT</em></strong>, are a perfect complement to the first four characters of <strong>N</strong>: <strong><em>GAAA</em></strong>. They will clamp together, and leave out two tails: a simple <strong><em>G</em></strong> on one side, and <strong>6</strong> <strong><em>A</em></strong>s on the other side. Wait, <strong>this looks almost familiar…</strong></p>
+<p>Indeed, since DNA strands are flexible, the two tails will act as a new DNA strand <strong><em>GAAAAAA</em></strong>, which has the same structure as <strong>N</strong>, but with <strong>6</strong> <strong><em>A</em></strong>s instead of nine. You see where this is heading: <strong>the process will repeat itself!</strong> Another <strong>d</strong> strand will float by, and its leading <strong>C</strong> character will get hooked. Every time this happens, the number of <strong><em>A</em></strong> characters on our main string will be <strong>reduced by three!</strong> Eventually, there won’t be any <strong><em>A</em></strong> left on our strand, all covered with <strong><em>T</em></strong>s.</p>
+<p>What we just implemented is a division of <strong>9</strong> by <strong>3</strong>, effectively giving zero. The strand <strong>N</strong> encoded the number <strong>9</strong> with nine <strong><em>A</em></strong> characters, and the strand <strong>d</strong> encoded the subtraction by <strong>3</strong>, with three <strong><em>T</em></strong> characters. This is easily extended to any numbers, can be used e.g. for checking if a number is prime or not. The truly amazing part is that all the computations are <strong>(almost) completely parallel</strong>: you have <strong>thousands of pairs</strong> forming, <strong>independently</strong> of others!</p>
+<p>Of course, this is very theorethic, even though some succesful experimentation was <a href="http://www.dna.caltech.edu/~winfree/">done already</a>. It is still the very beginning of DNA computing, and the time it takes to run an algorithm exceeds by far that of a computer (if you can run the given algorithm in a first place). Yet, it is promising, and in the end theoricists don’t care that much if it will work one day.</p>
+<h3 id="my-contributions">My contributions</h3>
+<p>Last February, I completed a research project as part of my Master’s studies. I was able to provide solutions to several problems using <strong><em>DNA algorithms</em></strong>, like:</p>
+<ul>
+<li>Checking if a number is <strong>prime</strong></li>
+<li>Computing the <strong>square root</strong> of a number</li>
+<li>Implementing <strong>binary inputs</strong> for DNA problems</li>
+</ul>
+<p>and also did some analysis on how fast/how reliable such algorithms were. The improvements compared to other DNA based computing are that</p>
+<ol type="1">
+<li>it is more scalable (at least theoretically)</li>
+<li>it only uses DNA strands (Adleman, for instance, also used enzymes).</li>
+</ol>
+<p>If you are hungry for DNA algorithm knowledge, have any questions, or want to complain about anything: just drop me a word in the comments below!</p>
+<p><em>There are many problems (and solutions!) related to computing with DNA, and some of the following might be interesting to the reader:</em></p>
+<ul>
+<li>Adleman, L.M.: Molecular computation of solutions to combinatorial problems. In: Science Magazine. (November 2009)</li>
+<li>Zhang, D.Y., Winfree, E.: Control of dna strand displacement kinetics using toehold exchange. In: J A C S Articles. (June 2009)</li>
+<li>Qian, L., Winfree, E.: Scaling up digital circuit computation with dna strand displacement cascades. In: Science Magazine. (June 2011)</li>
+</ul>
+<p><em>Also, Microsoft developed <a href="http://research.microsoft.com/en-us/projects/dna/">a tool</a> for visualizing DNA computing. Have fun!</em></p>
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+ MathJax.Hub.Config({
+     tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+     });
+     </script>
+            </div>
+        </div>
+
+        <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-82921132-1', 'auto');
+    ga('send', 'pageview');
+
+        </script>
+    </body>
+</html>
