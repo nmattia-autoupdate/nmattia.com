@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>resume</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <style type="text/css">
+  /*
+   * Copyright 2013 Christophe-Marie Duquesne <chmd@chmd.fr>
+   *
+   * CSS for making a resume with pandoc. Inspired by moderncv.
+   *
+   * This CSS document is delivered to you under the CC BY-SA 3.0 License.
+   * https://creativecommons.org/licenses/by-sa/3.0/deed.en_US
+   */
+  
+  /* Whole document */
+  body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      max-width: 800px;
+      margin: auto;
+      background: #FFFFFF;
+      padding: 10px 10px 10px 10px;
+  }
+  
+  /* Title of the resume */
+  h1 {
+      font-size: 55px;
+      color: #757575;
+      text-align:center;
+      margin-bottom:15px;
+  }
+  h1:hover {
+      background-color: #757575;
+      color: #FFFFFF;
+      text-shadow: 1px 1px 1px #333;
+  }
+  
+  /* Titles of categories */
+  h2 {
+      /* This is called "sectioncolor" in the ConTeXt stylesheet. */
+      color: #397249;
+  }
+  /* There is a bar just before each category */
+  h2:before {
+      content: "";
+      display: inline-block;
+      margin-right:1%;
+      width: 16%;
+      height: 10px;
+      /* This is called "rulecolor" in the ConTeXt stylesheet. */
+      background-color: #9CB770;
+  }
+  h2:hover {
+      background-color: #397249;
+      color: #FFFFFF;
+      text-shadow: 1px 1px 1px #333;
+  }
+  
+  /* Definitions */
+  dt {
+      float: left;
+      clear: left;
+      width: 17%;
+      /*font-weight: bold;*/
+  }
+  dd {
+      margin-left: 17%;
+  }
+  p {
+      margin-top:0;
+      margin-bottom:7px;
+  }
+  
+  /* Blockquotes */
+  blockquote {
+      text-align: center
+  }
+  
+  /* Links */
+  a {
+      text-decoration: none;
+      color: #397249;
+  }
+  a:hover, a:active {
+      background-color: #397249;
+      color: #FFFFFF;
+      text-decoration: none;
+      text-shadow: 1px 1px 1px #333;
+  }
+  
+  /* Horizontal separators */
+  hr {
+      color: #A6A6A6;
+  }
+  
+  table {
+      width: 100%;
+  }
+  </style>
+</head>
+<body>
+<h1 id="nicolas-mattia">Nicolas Mattia</h1>
+<hr />
+<blockquote>
+<p>I am a software engineer with a passion for functional programming,<br />
+correctness and robustness. I like simple solutions.</p>
+</blockquote>
+<hr />
+<h2 id="employment">Employment</h2>
+<p><strong>Software Engineer at Tweag I/O</strong></p>
+<p>I have been working as a Haskell consultant with <a href="https://tweag.io">Tweag I/O</a> since September 2016. I was acting directly with clients and learned how to turn moonshots into production-ready projects.</p>
+<ul>
+<li>I was part of the research team for an <a href="http://www.sagestorage.eu/">EU-funded project</a> which aims at redefining data storage for the era of extreme data and exascale computing, and</li>
+<li>I was on a two-man mission for developing a new data platform for a Fortune 500 company; the platform enables data scientists from several continents to easily share large datasets for reproducible research, and</li>
+<li>I worked on a spreadsheet engine that allows Python, R and other languages to be used interactively alongside Excel. I advised on, and helped implementing the API and database designs, auto scaling infrastructure and code quality measures.</li>
+</ul>
+<p><strong>Platform Engineer at Pusher Ltd.</strong></p>
+<p>I worked at <a href="https://pusher.com">Pusher Ltd.</a> in London for a year starting in September 2015. This taught me that with every million users come a million ways to break your platform.</p>
+<ul>
+<li>I contributed to the design and development of a high-performance, distributed PubSub system, and</li>
+<li>I developed a pluggable system for reporting and monitoring the performance of the platform, and</li>
+<li>I wrote <code>nagios-sink</code>, a simple service that gathers the statuses of Nagios endpoints.</li>
+</ul>
+<h2 id="education">Education</h2>
+<dl>
+<dt>2013 – 2015</dt>
+<dd><p><strong>Msc, Information Technology &amp; Electrical Engineering</strong> – ETHZ, Zurich</p>
+<p><em>Graduated in <em>Systems &amp; Control</em> from the <em>ITET</em> department.</em></p>
+</dd>
+<dt>2012 – 2013</dt>
+<dd><p><strong>Erasmus</strong> – TU Wien, Vienna</p>
+<p><em>Erasmus year in Vienna as <em>Elektrotechnik/Bau-ingenieur</em>.</em></p>
+</dd>
+<dt>2010 – 2013</dt>
+<dd><p><strong>BSc, Micro-Engineering</strong> – EPFL, Lausanne</p>
+<p><em>Graduated as a <em>Microtechnicien (micro-engineer)</em> from the <em>MT</em> department.</em></p>
+</dd>
+</dl>
+<h2 id="technical-experience">Technical Experience</h2>
+<dl>
+<dt>Open Source</dt>
+<dd><p>I often contribute to the Open Source projects that I use in my work, either to bring attention to an issue – or directly fix a bug – or to submit a new feature. I also have a few projects of my own, including:</p>
+<ul>
+<li><a href="https://github.com/githubuser/superlongprojectname">stutter</a> – A command-line tool that generates strings based on regex-like input,</li>
+<li><a href="https://github.com/githubuser/superlongprojectname">rulex</a> – A Ruby DSL for generating LaTeX, and</li>
+<li><a href="https://github.com/githubuser/superlongprojectname">mask</a> – the Haskell Makefile parser and generator.</li>
+</ul>
+</dd>
+<dt>Tools</dt>
+<dd><strong>Haskell</strong> is my language of choice for most projects. I have leveraged its powerful type system on many occasions, have contributed to core libraries and have a good understanding of its runtime characteristics.
+</dd>
+<dd><p><strong>Nix</strong> is my go-to package manager and build system. I contribute to Nixpkgs, have deployed Nix in production to team to up to 40 engineers and have acquired an excellent understanding of its model, capabilities and limitations.</p>
+</dd>
+<dd><p>Proficient with <strong>Go</strong>, <strong>Java</strong>, <strong>Ruby</strong>, <strong>C/C++</strong>, <strong>Kubernetes</strong>, <strong>Terraform</strong></p>
+</dd>
+<dd><p>Basic knowledge of <strong>Rust</strong>, <strong>Erlang</strong>, <strong>LaTeX</strong>, <strong>x86 assembly</strong>, <strong>JavaScript</strong>, <strong>Python</strong></p>
+</dd>
+</dl>
+<h2 id="academic-speaking">Academic &amp; Speaking</h2>
+<dl>
+<dt>Speaking</dt>
+<dd><strong>A Fully Functional Webapp</strong> – Talk at WebZuri<br />
+Discussions around and examples of full-FP stacks for web applications.
+</dd>
+<dt>Academic</dt>
+<dd><p><strong>Dominating the Stone Age</strong> – Master’s Thesis<br />
+Solved graph-theoretic problems using networks of finite-state machines.</p>
+<p><strong>Toehold DNA Languages are Regular</strong> – Publication<br />
+By Sebastian Brandt, Nicolas Mattia, Jochen Seidel, and Roger Wattenhofer, 2015. In ISAAC’15.</p>
+<p><strong>Parallel DNA</strong> – Semester Project<br />
+Modeled and studied parallel, DNA-based computations.</p>
+<p><strong>Parallelizing the Schrödinger Equation</strong> – Semester Project<br />
+Developed a fast parallel algorithm for solving the Retarded Green’s Function.</p>
+</dd>
+</dl>
+<h2 id="beyond-technology">Beyond technology</h2>
+<ul>
+<li><p>Languages:</p>
+<ul>
+<li>French (native speaker)</li>
+<li>English (fluent)</li>
+<li>German (professional proficiency)</li>
+<li>Italian (social proficiency)</li>
+</ul></li>
+<li><p>I am a music enthusiast and have played the lead guitar in several local bands, the latest in date being <a href="http://soldatlemmy.com">Soldat Lemmy</a>. I also enjoy bouldering and sketching.</p></li>
+</ul>
+<hr />
+<blockquote>
+<p><a href="mailto:nicolas@nmattia.com">nicolas@nmattia.com</a> • <a href="http://github.com/nmattia">github.com/nmattia</a> • <a href="http://nmattia.com" class="uri">http://nmattia.com</a><br />
++41 79 717 63 31 • Betrastrasse 74 – 8003 Zurich, Switzerland</p>
+</blockquote>
+</body>
+</html>
