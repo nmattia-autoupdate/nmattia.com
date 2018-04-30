@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <!-- proper charset -->
+        <meta charset="utf-8">
+        <!-- Disable mobile scaling -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <title>Nicolas Mattia</title>
+
+        <!-- Appended '?v=X' for dirtying cache -->
+        <link rel="stylesheet" type="text/css" href="../css/default.css?v=1" />
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Varela+Round" rel="stylesheet">
+        <link rel="stylesheet" href="../css/font-awesome/css/font-awesome.min.css">
+        <link rel="alternate" type="application/atom+xml" title="nmattia Atom feed" href="../atom.xml?type=blog" />
+        <link rel="alternate" type="application/rss+xml" title="nmattia RSS feed" href="../rss.xml?type=blog" />
+    </head>
+
+    <body>
+        <div class="main">
+            <div class="header">
+                <div class="logo">
+                    <a href="../" class="home">Nicolas Mattia</br></a>
+                    <div class="links">
+                        <a href="https://www.github.com/nmattia"><i class="fa fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/nicolas-mattia/"><i class="fa fa-linkedin"></i></a>
+                        <a href="mailto:nicolas@nmattia.com"><i class="fa fa-envelope-o"></i></a>
+                    </div>
+                </div>
+                <div class="nav">
+                    <ul>
+                        <li><a href="../">home</a></li>
+                        <li><a href="../blog.html">blog</a></li>
+                        <li><a href="../about.html">about</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content">
+                <h1 id="automatically-generated-directories-for-individual-tasty-tests">Automatically generated directories for individual tasty tests</h1>
+<p>This is a <del>hack</del> <em>practical trick</em> for creating directories based on test names using the Haskell test framework <a href="http://hackage.haskell.org/package/tasty">tasty</a>, as well as accessing the test names inside your <a href="http://hackage.haskell.org/package/tasty">tasty</a> tests themselves.</p>
+<p><em>You can find the full code on <a href="https://gist.github.com/nmattia/fa6962d11a3f87c63d2c9d04d04e0531">GitHub</a></em></p>
+<p>Last week I worked on a test suite that printed a lot of logs to stdout. This didn’t play well with <a href="http://hackage.haskell.org/package/tasty">tasty</a> as the test results were interleaved with whatever was printed out on stdout. I decided to redirect the logs to files but I wanted those logs to be easily retrievable in case of a test failure. The easiest way to do so was to create a directory for each test, based on the test’s name.</p>
+<p>The <a href="http://hackage.haskell.org/package/tasty">tasty</a> framework unfortunately does not allow you to read the <a href="http://hackage.haskell.org/package/tasty-1.0.1.1/docs/Test-Tasty.html#t:TestTree"><code>TestTree</code></a> structure, thereby making it impossible to know the current test’s name. Fortunately <a href="http://hackage.haskell.org/package/tasty">tasty</a> has a flexible option infrastructure which we can leverage to track the names used in the tree, from the root up to the leaf – i.e. the full test name.</p>
+<p>First we’ll create a type that contains the names encountered on a particular path in the tree and make it a tasty option (that is, create an <a href="http://hackage.haskell.org/package/tasty-1.0.1.1/docs/Test-Tasty-Options.html#t:IsOption"><code>IsOption</code></a> instance):</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="co">-- | The test names of the test tree</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">newtype</span> <span class="dt">TastyNames</span> <span class="fu">=</span> <span class="dt">TastyNames</span> [<span class="dt">String</span>]</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">IsOption</span> <span class="dt">TastyNames</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  defaultValue <span class="fu">=</span> <span class="dt">TastyNames</span> [] <span class="co">-- The base name</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">  <span class="co">-- We don't care about the rest</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">  parseValue _ <span class="fu">=</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  optionName <span class="fu">=</span> <span class="dt">Tagged</span> <span class="st">&quot;&quot;</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  optionHelp <span class="fu">=</span> <span class="dt">Tagged</span> <span class="st">&quot;&quot;</span></a></code></pre></div>
+<p><em>Note: in practice you do not want to export <code>TastyNames</code> as this should only be used internally. You don’t want your users to actually set <code>TastyNames</code> on the command line, for instance.</em></p>
+<p>Then we can provide a substitute to <a href="http://hackage.haskell.org/package/tasty">tasty</a>’s <a href="http://hackage.haskell.org/package/tasty-1.0.1.1/docs/Test-Tasty.html#v:testGroup"><code>testGroup</code></a> that updates the <code>TastyNames</code> option for the children of the node:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="co">-- | Create a named group of test cases or other groups while keeping track of</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">-- the specified 'TestName'</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="ot">testGroup ::</span> <span class="dt">TestName</span> <span class="ot">-&gt;</span> [<span class="dt">TestTree</span>] <span class="ot">-&gt;</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">testGroup tn <span class="fu">=</span> adjustNames tn <span class="fu">.</span> Test.Tasty.testGroup tn</a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="co">-- | Records the 'TestName' in the 'TastyNames' option.</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="ot">adjustNames ::</span> <span class="dt">TestName</span> <span class="ot">-&gt;</span> <span class="dt">TestTree</span> <span class="ot">-&gt;</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8">adjustNames tn <span class="fu">=</span> adjustOption f</a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="ot">    f ::</span> <span class="dt">TastyNames</span> <span class="ot">-&gt;</span> <span class="dt">TastyNames</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11">    f (<span class="dt">TastyNames</span> ns) <span class="fu">=</span> <span class="dt">TastyNames</span> (ns <span class="fu">&lt;&gt;</span> [tn])</a></code></pre></div>
+<p>Finally we provide helper functions that provide the test’s name as an argument to the test itself – or better, create a directory for the test:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="co">-- | Turn an Assertion into a tasty test case, providing the 'TastyNames'</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="co">-- accumulated in the test tree.</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="ot">testCaseWithNames ::</span> <span class="dt">TestName</span> <span class="ot">-&gt;</span> (<span class="dt">TastyNames</span> <span class="ot">-&gt;</span> <span class="dt">Assertion</span>) <span class="ot">-&gt;</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">testCaseWithNames tn act <span class="fu">=</span> adjustNames tn <span class="fu">$</span> askOption <span class="fu">$</span> \tns <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">    testCase tn <span class="fu">$</span> act tns</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb3-7" data-line-number="7"><span class="co">-- | Turn an Assertion into a tasty test case, providing a directory created</span></a>
+<a class="sourceLine" id="cb3-8" data-line-number="8"><span class="co">-- based on the accumulated names in the test tree.</span></a>
+<a class="sourceLine" id="cb3-9" data-line-number="9"><span class="ot">testCaseWithDir ::</span> <span class="dt">TestName</span> <span class="ot">-&gt;</span> (FilePath <span class="ot">-&gt;</span> <span class="dt">Assertion</span>) <span class="ot">-&gt;</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">testCaseWithDir tn act <span class="fu">=</span> testCaseWithNames tn <span class="fu">$</span> \(<span class="dt">TastyNames</span> tns) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">    <span class="kw">let</span> dir <span class="fu">=</span> foldr (<span class="fu">&lt;/&gt;</span>) <span class="st">&quot;&quot;</span> <span class="fu">$</span> toFriendlyFilepath <span class="fu">&lt;$&gt;</span> tns</a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">    createDirectoryIfMissing <span class="dt">True</span> dir</a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">    act dir</a>
+<a class="sourceLine" id="cb3-14" data-line-number="14">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-15" data-line-number="15">    <span class="co">-- bangs a string into a filepath-friendly name</span></a>
+<a class="sourceLine" id="cb3-16" data-line-number="16"><span class="ot">    toFriendlyFilepath ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> FilePath</a>
+<a class="sourceLine" id="cb3-17" data-line-number="17">    toFriendlyFilepath <span class="fu">=</span> stripBoundayDash <span class="fu">.</span> collapseDashes <span class="fu">.</span> unhexToDash</a>
+<a class="sourceLine" id="cb3-18" data-line-number="18">    stripBoundayDash <span class="fu">=</span> reverse <span class="fu">.</span> stripDash <span class="fu">.</span> reverse <span class="fu">.</span> stripDash</a>
+<a class="sourceLine" id="cb3-19" data-line-number="19">    stripDash <span class="fu">=</span> dropWhile (<span class="fu">==</span> <span class="ch">'-'</span>)</a>
+<a class="sourceLine" id="cb3-20" data-line-number="20">    unhexToDash <span class="fu">=</span> fmap <span class="fu">$</span> toLower <span class="fu">.</span> (\c <span class="ot">-&gt;</span> <span class="kw">if</span> isAlphaNum c <span class="kw">then</span> c <span class="kw">else</span> <span class="ch">'-'</span>)</a>
+<a class="sourceLine" id="cb3-21" data-line-number="21">    collapseDashes <span class="fu">=</span> concatMap (\<span class="kw">case</span> { <span class="ch">'-'</span><span class="fu">:</span>_ <span class="ot">-&gt;</span> [<span class="ch">'-'</span>]; xs <span class="ot">-&gt;</span> xs}) <span class="fu">.</span> group</a></code></pre></div>
+<p>This can be used together as follows:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">main <span class="fu">=</span> defaultMain <span class="fu">$</span> testGroup <span class="st">&quot;foo&quot;</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">    [ testCaseWithNames <span class="st">&quot;bar&quot;</span> <span class="fu">$</span> \(<span class="dt">TastyNames</span> tns) <span class="ot">-&gt;</span> [<span class="st">&quot;foo&quot;</span>, <span class="st">&quot;bar&quot;</span>] <span class="fu">@=?</span> tns</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">    , testCaseWithDir <span class="st">&quot;bar, 3 (baz)&quot;</span> <span class="fu">$</span> \fp <span class="ot">-&gt;</span> <span class="st">&quot;foo/bar-3-baz&quot;</span> <span class="fu">@=?</span> fp</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">    ]</a></code></pre></div>
+<p>And that’s how you can easily access <a href="http://hackage.haskell.org/package/tasty">tasty</a> test names inside the test themselves and create unique directories for your logs! How you incorporate this in your test suite is up to you. One simple way is to use the <a href="https://jaspervdj.be/posts/2015-01-20-haskell-design-patterns-extended-modules.html"><code>.Extended</code> pattern</a> and create new modules – <code>Test.Tasty.Extended</code> and <code>Test.Tasty.HUnit.Extended</code> – which re-export most functions from the original modules, <em>but also</em> the tweaked <code>testGroup</code> and the helper functions <code>testCaseWithNames</code> and <code>testCaseWithDir</code>. Also you may want to add another <code>IsOption</code> for setting the base directory in which the logs are created – this one actually specifiable by the user.</p>
+Here’s the full code:
+<script src="https://gist.github.com/nmattia/fa6962d11a3f87c63d2c9d04d04e0531.js"></script>
+            </div>
+        </div>
+
+        <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-82921132-1', 'auto');
+    ga('send', 'pageview');
+
+        </script>
+    </body>
+</html>
