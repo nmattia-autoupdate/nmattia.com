@@ -8,8 +8,278 @@
         <name>Nicolas Mattia</name>
         <email>nicolas@nmattia.com</email>
     </author>
-    <updated>2018-04-30T00:00:00Z</updated>
+    <updated>2018-08-21T00:00:00Z</updated>
     <entry>
+    <title>cio%3A cached HTTP requests for a smooth Jupyter experience!</title>
+    <link href="http://www.nmattia.com/posts/2018-08-21-cio-cached-http-requests-jupyter.html" />
+    <id>http://www.nmattia.com/posts/2018-08-21-cio-cached-http-requests-jupyter.html</id>
+    <published>2018-08-21T00:00:00Z</published>
+    <updated>2018-08-21T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h1 id="cio-cached-http-requests-for-a-smooth-jupyter-experience">cio: cached HTTP requests for a smooth Jupyter experience!</h1>
+<p>This library provides a thin wrapper around the <a href="http://serpentine.com/wreq">wreq</a> library (a simple HTTP client library). It is meant to be used with <a href="http://jupyter.org/">Jupyter</a>: all requests will be stored <em>on disk</em> and served from the cache subsequently, even if your kernel gets restarted. The cache lookups are near-instantaneous thanks to the amazing <a href="http://leveldb.org/">LevelDB</a> library. You can use <code>cio</code> just like you would <code>wreq</code> – instead of importing <code>Network.Wreq</code>, import <code>CIO</code> (which stands for Cached IO):</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">import</span> <span class="dt">CIO</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Data.Aeson.Lens</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="kw">import</span> <span class="dt">Control.Lens</span></a></code></pre></div>
+<p>Then use the functions you are used to, like <code>get</code>:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1">get <span class="st">&quot;https://api.github.com/users/nmattia&quot;</span> <span class="fu">&lt;&amp;&gt;</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">    (<span class="fu">^.</span>responseBody<span class="fu">.</span>key <span class="st">&quot;name&quot;</span><span class="fu">.</span>_String)</a></code></pre></div>
+<pre><code>&quot;Nicolas Mattia&quot;</code></pre>
+<h2 id="building-cio">Building cio</h2>
+<p>The simplest way to build this library is to use Nix. To get started clone the cio repository (<a href="https://github.com/nmattia/cio">nmattia/cio</a>), then run the following:</p>
+<pre class="shell"><code>$ nix-shell
+helpers:
+&gt; cio_build
+&gt; cio_ghci
+&gt; cio_notebook
+&gt; cio_readme_gen</code></pre>
+<p>The helper functions will respectively build <code>cio</code>, start a <code>ghci</code> session for <code>cio</code>, start a Jupyter notebook with <code>cio</code> loaded and regenerate the README (this file is a Jupyter notebook!).</p>
+<h2 id="using-cio">Using cio</h2>
+<p>Three functions are provided on top of <code>wreq</code>: * <code>get :: String -&gt; CIO Response</code> performs a (cached) request to the given URL. * <code>getWith :: Options -&gt; String -&gt; CIO Response</code> performs a (cached) request to the given URL using the provided <code>wreq</code> <a href="http://hackage.haskell.org/package/wreq-0.5.2.1/docs/Network-Wreq.html#t:Options"><code>Options</code></a>. * <code>getAllWith :: Options -&gt; String -&gt; Producer CIO Response</code> performs several (cached) requests by lazily following the <code>Link</code> headers (see for instance <a href="https://developer.github.com/v3/guides/traversing-with-pagination/">GitHub’s pagination mechanism</a>).</p>
+<p>Let’s see what happens when a request is performed twice. First let’s write a function for timing the requests:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.Monad.IO.Class</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Data.Time</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="ot">timeIt ::</span> <span class="dt">CIO</span> a <span class="ot">-&gt;</span> <span class="dt">CIO</span> (<span class="dt">NominalDiffTime</span>, a)</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">timeIt act <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">    start <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> getCurrentTime</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">    res <span class="ot">&lt;-</span> act</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">    stop <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> getCurrentTime</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">    pure (diffUTCTime stop start, res)</a></code></pre></div>
+<p>Then we’ll generate a unique string which we’ll use as a dummy parameter in order to force <code>cio</code> to perform the request the first time, so that we can time it:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Data.UUID</span> (toText)</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="kw">import</span> <span class="dt">System.Random</span> (randomIO)</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">uuid <span class="ot">&lt;-</span> toText <span class="fu">&lt;$&gt;</span> randomIO</a></code></pre></div>
+<p>Finally we use <code>getWith</code> and set the <code>dummy</code> query parameter to the <code>UUID</code> we just generated and time the request:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">timeIt <span class="fu">$</span> getWith (param <span class="st">&quot;dummy&quot;</span> <span class="fu">.~</span> [uuid] <span class="fu">$</span> defaults) <span class="st">&quot;https://api.github.com/users/nmattia&quot;</span> <span class="fu">&lt;&amp;&gt;</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">    (<span class="fu">^.</span>responseBody<span class="fu">.</span>key <span class="st">&quot;name&quot;</span><span class="fu">.</span>_String)</a></code></pre></div>
+<pre><code>(1.214306799s,&quot;Nicolas Mattia&quot;)</code></pre>
+<p>That’s a pretty long time! When playing around with data in a Jupyter notebook waiting around for requests to complete is a real productivity and creativity killer. Let’s see what <code>cio</code> can do for us:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1">timeIt <span class="fu">$</span> getWith (param <span class="st">&quot;dummy&quot;</span> <span class="fu">.~</span> [uuid] <span class="fu">$</span> defaults) <span class="st">&quot;https://api.github.com/users/nmattia&quot;</span> <span class="fu">&lt;&amp;&gt;</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">    (<span class="fu">^.</span>responseBody<span class="fu">.</span>key <span class="st">&quot;name&quot;</span><span class="fu">.</span>_String)</a></code></pre></div>
+<pre><code>(0.000248564s,&quot;Nicolas Mattia&quot;)</code></pre>
+<p>Pretty nice! You might have noticed that the <code>CIO</code> results were printed out, as <code>Show a =&gt; IO a</code> would be in GHCi. As mentioned before, <code>cio</code> is optimized for Jupyter workflows, and as such all <code>Show</code>-able results will be printed directly to the notebook’s output. Lists of <code>Show</code>-ables will be pretty printed, which we’ll demonstrate by playing with <code>cio</code>’s other cool feature: lazily following page links.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Data.Conduit</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Data.Conduit.Combinators</span> <span class="kw">as</span> <span class="dt">C</span></a></code></pre></div>
+<p>In order to lazily fetch data <code>cio</code> uses the <a href="http://hackage.haskell.org/package/conduit"><code>conduit</code> library</a>. The <code>getAllWith</code> function is a <code>Producer</code> of <code>Response</code>s (sorry, a <code>ConduitT i Response CIO ()</code>) which are served from the cache when possible. Here we ask GitHub to give us only two results per page, and <code>cio</code> will iterate the pages until the five expected items have been fetched (if you do the math that’s about 3 pages):</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">sourceToList <span class="fu">$</span> </a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">    getAllWith </a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">        (defaults </a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">        <span class="fu">&amp;</span> param <span class="st">&quot;q&quot;</span> <span class="fu">.~</span> [<span class="st">&quot;language:haskell&quot;</span>] </a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">        <span class="fu">&amp;</span> param <span class="st">&quot;sort&quot;</span> <span class="fu">.~</span> [<span class="st">&quot;stars&quot;</span>]</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">        <span class="fu">&amp;</span> param <span class="st">&quot;per_page&quot;</span> <span class="fu">.~</span> [<span class="st">&quot;2&quot;</span>])</a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">        <span class="st">&quot;https://api.github.com/search/repositories&quot;</span></a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">    <span class="fu">.|</span> awaitForever (C.yieldMany <span class="fu">.</span> (</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">        <span class="fu">^..</span>responseBody</a>
+<a class="sourceLine" id="cb12-10" data-line-number="10">        <span class="fu">.</span>key <span class="st">&quot;items&quot;</span></a>
+<a class="sourceLine" id="cb12-11" data-line-number="11">        <span class="fu">.</span>values</a>
+<a class="sourceLine" id="cb12-12" data-line-number="12">        <span class="fu">.</span>key <span class="st">&quot;full_name&quot;</span></a>
+<a class="sourceLine" id="cb12-13" data-line-number="13">        <span class="fu">.</span>_String))</a>
+<a class="sourceLine" id="cb12-14" data-line-number="14">    <span class="fu">.|</span> C.take <span class="dv">5</span></a></code></pre></div>
+<pre><code>&quot;jgm/pandoc&quot;
+
+
+
+&quot;koalaman/shellcheck&quot;
+
+
+
+&quot;PostgREST/postgrest&quot;
+
+
+
+&quot;purescript/purescript&quot;
+
+
+
+&quot;elm/compiler&quot;</code></pre>
+<h2 id="what-if-something-goes-wrong">What if something goes wrong?</h2>
+<p>What’s the second hardest thing in computer science, besides naming and off-by-one errors? Cache invalidation, of course. For the cache’s sake, all your requests should be idempotent, but unfortunately that’s not always possible. Here <code>cio</code> doesn’t assume anything but lets you deal with dirtying yourself by using either of these two functions:</p>
+<ul>
+<li><code>dirtyReq :: String -&gt; CIO ()</code>, like <code>get</code> but instead of fetching the response dirties the entry in the cache.</li>
+<li><code>dirtyReqWith :: Options -&gt; String -&gt; CIO ()</code>, like <code>getWith</code> but instead of fetching the response dirties the entry in the cache.</li>
+</ul>
+<p>If things went <em>really</em> wrong, you can always wipe the cache entirely…</p>
+<h2 id="but-wheres-the-cache">… but where’s the cache?</h2>
+<p>The cache is set globally (reminder: this is a Jupyter-optimized workflow):</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">getCacheFile</a></code></pre></div>
+<pre><code>&quot;requests.cache&quot;</code></pre>
+<p>If you need a different cache file you can either change the global cache file:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="fu">:</span>t setCacheFile</a></code></pre></div>
+<style>/* Styles used for the Hoogle display in the pager */
+.hoogle-doc {
+display: block;
+padding-bottom: 1.3em;
+padding-left: 0.4em;
+}
+.hoogle-code {
+display: block;
+font-family: monospace;
+white-space: pre;
+}
+.hoogle-text {
+display: block;
+}
+.hoogle-name {
+color: green;
+font-weight: bold;
+}
+.hoogle-head {
+font-weight: bold;
+}
+.hoogle-sub {
+display: block;
+margin-left: 0.4em;
+}
+.hoogle-package {
+font-weight: bold;
+font-style: italic;
+}
+.hoogle-module {
+font-weight: bold;
+}
+.hoogle-class {
+font-weight: bold;
+}
+.get-type {
+color: green;
+font-weight: bold;
+font-family: monospace;
+display: block;
+white-space: pre-wrap;
+}
+.show-type {
+color: green;
+font-weight: bold;
+font-family: monospace;
+margin-left: 1em;
+}
+.mono {
+font-family: monospace;
+display: block;
+}
+.err-msg {
+color: red;
+font-style: italic;
+font-family: monospace;
+white-space: pre;
+display: block;
+}
+#unshowable {
+color: red;
+font-weight: bold;
+}
+.err-msg.in.collapse {
+padding-top: 0.7em;
+}
+.highlight-code {
+white-space: pre;
+font-family: monospace;
+}
+.suggestion-warning { 
+font-weight: bold;
+color: rgb(200, 130, 0);
+}
+.suggestion-error { 
+font-weight: bold;
+color: red;
+}
+.suggestion-name {
+font-weight: bold;
+}
+</style>
+<p><span class="get-type">setCacheFile :: FilePath -&gt; IO ()</span></p>
+<p>or run your <code>CIO</code> code manually:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="fu">:</span>t runCIOWith</a></code></pre></div>
+<style>/* Styles used for the Hoogle display in the pager */
+.hoogle-doc {
+display: block;
+padding-bottom: 1.3em;
+padding-left: 0.4em;
+}
+.hoogle-code {
+display: block;
+font-family: monospace;
+white-space: pre;
+}
+.hoogle-text {
+display: block;
+}
+.hoogle-name {
+color: green;
+font-weight: bold;
+}
+.hoogle-head {
+font-weight: bold;
+}
+.hoogle-sub {
+display: block;
+margin-left: 0.4em;
+}
+.hoogle-package {
+font-weight: bold;
+font-style: italic;
+}
+.hoogle-module {
+font-weight: bold;
+}
+.hoogle-class {
+font-weight: bold;
+}
+.get-type {
+color: green;
+font-weight: bold;
+font-family: monospace;
+display: block;
+white-space: pre-wrap;
+}
+.show-type {
+color: green;
+font-weight: bold;
+font-family: monospace;
+margin-left: 1em;
+}
+.mono {
+font-family: monospace;
+display: block;
+}
+.err-msg {
+color: red;
+font-style: italic;
+font-family: monospace;
+white-space: pre;
+display: block;
+}
+#unshowable {
+color: red;
+font-weight: bold;
+}
+.err-msg.in.collapse {
+padding-top: 0.7em;
+}
+.highlight-code {
+white-space: pre;
+font-family: monospace;
+}
+.suggestion-warning { 
+font-weight: bold;
+color: rgb(200, 130, 0);
+}
+.suggestion-error { 
+font-weight: bold;
+color: red;
+}
+.suggestion-name {
+font-weight: bold;
+}
+</style>
+<p><span class="get-type">runCIOWith :: forall a. FilePath -&gt; CIO a -&gt; IO a</span></p>
+<h2 id="one-more-thing">one more thing…</h2>
+<p>.. nope, that’s all! Enjoy!</p>]]></summary>
+</entry>
+<entry>
     <title>Automatically generated directories for individual tasty tests</title>
     <link href="http://www.nmattia.com/posts/2018-04-30-tasty-test-names.html" />
     <id>http://www.nmattia.com/posts/2018-04-30-tasty-test-names.html</id>
