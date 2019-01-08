@@ -8,8 +8,226 @@
         <name>Nicolas Mattia</name>
         <email>nicolas@nmattia.com</email>
     </author>
-    <updated>2018-08-21T00:00:00Z</updated>
+    <updated>2019-01-08T00:00:00Z</updated>
     <entry>
+    <title>Hunt bugs down before they are merged!</title>
+    <link href="http://www.nmattia.com/posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html" />
+    <id>http://www.nmattia.com/posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html</id>
+    <published>2019-01-08T00:00:00Z</published>
+    <updated>2019-01-08T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I discuss a few reasons why catching bugs in master is more expensive than before they are merged, try to explain why some people think this isn’t true, and talk a bit about merge queues.</p>
+<hr />
+<style>
+.story {
+  background-color: lightblue;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+</style>
+<h1 id="hunt-bugs-down-before-they-are-merged">Hunt bugs down before they are merged!</h1>
+<p>Here’s something I heard a few times from recalcitrant coworkers after I’ve asked them to write more tests in one of my signature uptight PR reviews:</p>
+<blockquote>
+<p>The cost of fixing a bug <strong>after it has been merged</strong> into the master branch is <strong>the same</strong> as that of fixing it <strong>before it has been merged</strong> into the master branch.</p>
+</blockquote>
+<p>I beg to differ! Catching a bug once it has landed in the main codebase has a huge associated cost. It boils down to the following reasons, which I’ll describe individually in the next few sections:</p>
+<ul>
+<li>When someone hits a bug in the main code base, they were most likely not looking for one, but trying to get work done.</li>
+<li>Whomever is tasked with fixing the bug may have lost context relevant to the faulty code, or maybe they never had any to start with.</li>
+<li>Reporting a bug creates noise in the form of tickets and pull requests (PRs).</li>
+</ul>
+<p>Let’s jump right in!</p>
+<div class="story">
+<p>You are a frontend engineer for a company that stores online notes. You’re tasked with writing an autocomplete function allowing the user to find notes more quickly:</p>
+<pre><code>
++-----------------------+  +------+
+| Gr|                   |  | open |
++-----------------------+  +------+
+|                       |
+| Great minds.txt       |
+|                       |
+| Grocery list          |
+|                       |
+| Grrr! said the lion   |
+|                       |
+| ...                   |
++-----------------------+
+</code></pre>
+<p>The following HTTP call returns the list of all of a user’s notes:</p>
+<pre class="http"><code>GET /users/&lt;user&gt;/notes?query=&lt;prefix&gt;</code></pre>
+</div>
+<h3 id="it-gets-in-the-way">It gets in the way</h3>
+<div class="story" style="display: inline-block;">
+<figure style="float: left;">
+<img src="../images/peanut_butter_cookies_nola.jpg" alt="Rated #1 in NOLA">
+<figcaption>
+And #2 in America!
+</figcaption>
+</figure>
+<p>You’ve been doing amazing work. You got the flow. Mind like water. You’re done with your frontend changes. You spin up a local instance of the server.</p>
+<p>You try it out and realize that the server segfaults when there are no matches.</p>
+<p>You despair. There goes your flow. The name of the backend engineers flash before your eyes. You consider not inviting them to your wedding. You make a mental list of who’s most likely to have introduced the bug. You consider quitting your job and becoming a barista in a different country – maybe even in New Orleans. You’ll need a specialty, maybe peanut butter cookies. You’ll kill it with your peanut butter cookies. People will know about them from New England to New Mexico. You’ll become famous and, in a few years, run for president of the United States. Then you consider the logistics: your fiancée will need to quit her job, you’ll need to hire a moving service, your dog may not survive the flight.</p>
+<p>You stash your local changes and set out to write a test case reproducing the issue.</p>
+</div>
+<p>Unless you’re a quality analyst, you probably don’t go around trying to find bugs for fun. Most of us discover bugs while trying to get something done: maybe you’re simply using the server, or you’re writing a new feature that depends on a different feature or function. Discovering wrong behavior in a codebase is almost always more of an annoyance than a nice surprise.</p>
+<p>Had the bug been caught before merge, the bug reporter would most likely have been the person who introduced the faulty behavior, and would have most likely been expecting to encounter “some” bug (correct software on the first attempt is a myth, sorry).</p>
+<h3 id="it-creates-noise">It creates noise</h3>
+<div class="story">
+<blockquote>
+<p>you&gt; <span class="citation" data-cites="channel">@channel</span> I’m experiencing server crashes when there are no matches on <code>/users/foo/notes?query=bar</code>, anybody knows anything about this?</p>
+<p>tom&gt; please use <span class="citation" data-cites="here">@here</span> instead of <span class="citation" data-cites="channel">@channel</span></p>
+<p>pat&gt; <span class="citation" data-cites="tom">@tom</span> please don’t use “at” channel</p>
+<p>jen&gt; <span class="citation" data-cites="you">@you</span> yes I think this is related to #2551</p>
+<p>mol&gt; <span class="citation" data-cites="jen">@jen</span> #2551 was fixed last week</p>
+<p>jen&gt; okay nevermind, no idea <span class="citation" data-cites="you">@you</span> :(</p>
+<p>mkt&gt; <span class="citation" data-cites="channel">@channel</span> lunch?</p>
+</blockquote>
+</div>
+<p>Whether you are reporting issues on Slack, GitHub, JIRA, you name it, reporting a bug creates some noise. Some people will need to label the ticket, will try to help you figure out the cause, others may simply get distracted because of the extra Slack/GitHub/JIRA notifications.</p>
+<p>All this can be avoided if bugs are caught before they are merged to master: bugs are typically not reported before the code is part of the mainstream codebase.</p>
+<div style="display: inline-block;">
+<h3 id="the-hunt">The Hunt</h3>
+<figure style="float: right;">
+<img src="../images/mads_the_hunt.jpg" alt="Mads “Hunter” Mikkelsen">
+<figcaption>
+Mads “Hunter” Mikkelsen
+</figcaption>
+</figure>
+<p>This one should be pretty straightforward. Finding a bug that’s been introduced by a diff before merge into the master branch limits the search space to that diff only. Trying to find a bug on master means potentially having to consider the whole codebase, unless your codebase lends itself to things like bisecting.</p>
+</div>
+<h3 id="lack-of-context">Lack of context</h3>
+<div class="story">
+<p>The VP of engineering comes to you, in his typical nonchalant tread:</p>
+<blockquote>
+<p>VP: You’ll need to fix that server crash bug.</p>
+<p>You: But!</p>
+<p>VP: I know it’s not your area of expertise, but we need this fixed before release.</p>
+<p>You: But!</p>
+<p>VP: See the bright side: you’ll get to learn some Rust!</p>
+<p>You: But… wait what?</p>
+<p>VP: Yeah Andy rewrote the backend in rust last week. He’s on holiday now though.</p>
+<p>You: …</p>
+<p>VP: Good luck! Don’t forget about Engineering breakfast tomorrow.</p>
+</blockquote>
+<p>As the VP leaves, you sing to yourself:</p>
+<blockquote>
+<p>… there’s a moooooon over bourbon street …</p>
+</blockquote>
+</div>
+<p>Most of the time no one knows where the bug is and who introduced it. This means that the odds of picking the right engineer to hunt down a bug are about the same as trying to guess who in your team got their tonsils removed last – if anybody actually got their tonsils removed.</p>
+<p>The person tasked with fixing the bug then is not particularly likely to know about the part of the codebase that is at fault. Even if the person who introduced the bug is working on hunting it and fixing it, that person might not have worked on that part of the codebase for a while. The context is either absent or has been lost with time, which make debugging longer and more frustrating.</p>
+<p>This can be avoided by catching the bugs right after they’ve been written, and before they’ve been merged.</p>
+<h3 id="moar-noise">Moar noise</h3>
+<div class="story">
+<blockquote>
+<p>you&gt; <span class="citation" data-cites="channel">@channel</span> I’ve got a fix for the server crash issue, anybody care to review #2578?</p>
+<p>tom&gt; please use <span class="citation" data-cites="here">@here</span> instead of <span class="citation" data-cites="channel">@channel</span></p>
+<p>pat&gt; <span class="citation" data-cites="tom">@tom</span> please don’t use “at” channel</p>
+<p>jen&gt; <span class="citation" data-cites="you">@you</span> yes I’ll have a look in a sec</p>
+<p>mol&gt; <span class="citation" data-cites="you">@you</span> sure np</p>
+<p>mkt&gt; <span class="citation" data-cites="channel">@channel</span> coffee break?</p>
+</blockquote>
+</div>
+<div style="display: inline-block;">
+<figure style="float: left;">
+<img src="../images/where_does_it_end.jpg" alt="Where does it end">
+<figcaption>
+Where does it end?
+</figcaption>
+</figure>
+<p>Fixed the issue? A new round of PRs and reviews creates even more noise. At best this justifies hiring the intern whose job it is to move JIRA tickets around. Most likely it’s a waste of time for everyone involved.</p>
+</div>
+<h3 id="why-the-fallacy">Why the fallacy?</h3>
+<p>So <em>why</em> do some people tend to think that it’s more efficient to merge new code and do damage control later (a.k.a shoot-from-the-hip coding)? Well, in the short term, it may save time for the implementer (let’s call a spade a space: the culprit) by:</p>
+<ul>
+<li>Not writing tests or coming up with enough test cases.</li>
+<li>Potentially merging without review.</li>
+</ul>
+<p>These may save time to one person in the short term by allowing them to merge faster and move on to other things; in the greater scheme of things however time and energy is wasted.</p>
+<p>Another reason why people tend to believe that fixing a bug in master isn’t necessarily worse than catching it before it is merged is that people often don’t realize that there’s a cost associated with reporting bugs. And this cost grows linearily with the number of people subscribed to the bug tracker, involved in triage, and QA.</p>
+<p>If you like your team, please make sure you catch your bugs before others find them themselves!</p>
+<h2 id="appendix-merge-queues-for-greater-good">Appendix: merge queues for greater good</h2>
+<p>Bugs are not the only way to break master, race conditions also apply to software process. They may happen when a CI system only runs tests on a branch, without rebasing on master first (note: some CI systems, like <a href="https://travis-ci.org/">Travis</a> and <a href="https://circleci.com">CircleCI</a>, will test both your branch as it is <em>and</em> after having rebased it on or merged it into master). The following diagram lists three branches, <code>master</code>, <code>bob</code> and <code>alice</code>:</p>
+<div class="story">
+<pre><code>
+bob master alice
+ .    ✓      .   master is green :)
+      |
+ .    +------+   Alice uses `makeRainbow()`
+      |      |
+ .    |      ✓   branch alice is green :)
+      |      |
+ +----+      |   Bob removes `makeRainbow()`
+ |    |      |
+ ✓    |      |   branch `bob` is green :)
+ |    |      |
+ +----&gt;      |   branch &quot;bob&quot; is merged
+      |      |
+      ✓      |   master is green :)
+      |      |
+      &lt;------+   branch &quot;alice&quot; is merged
+      |
+      x          master is red :(
+      |
+      v
+</code></pre>
+</div>
+<p>Alice forks a branch and used the function <code>makeRainbow()</code>. No bug introduced, CI is green, everyone’s happy. Around the same time Bob decides to do some clean up, forks master, and removes the function <code>makeRainbow()</code>. From his point of view, no one is using it, CI is green, everyone’s happy.</p>
+<p>Regardless of who merges first – Alice or Bob – the end result can’t be good: Alice’s feature makes use of a function that doesn’t exist in the codebase anymore after Bob’s changes. The solution to avoid those issues is to always rebase a branch before running CI tests:</p>
+<div class="story">
+<pre><code>
+bob master alice
+ .    ✓      .   master is green :)
+      |
+ .    +------+   Alice uses `makeRainbow()`
+      |      |
+ .    |      ✓   branch &quot;alice&quot; is green :)
+      |      |
+ +----+      |   Bob removes `makeRainbow()`
+ |    |      |
+ &lt;----+      |   branch &quot;bob&quot; is rebased on master
+ |    |      |
+ ✓    |      |   branch &quot;bob&quot; is green and ready for merge :)
+ |    |      |
+ +----&gt;      |   branch &quot;bob&quot; is merged
+      |      |
+      |      ?   merge is prevented on branch alice :|
+      |      |
+      +------&gt;   branch &quot;alice&quot; is rebased on master
+      |      |
+      |      x   branch &quot;alice&quot; is red :(
+      |      |
+      |      |   Alice writes a new implementation of `makeRainbow()`
+      |      |
+      |      ✓   branch &quot;alice&quot; is green and ready for merge :)
+      |      |
+      &lt;------+   branch &quot;alice&quot; is merged
+      |
+      ✓          master is green :)
+      |
+      v
+</code></pre>
+</div>
+<p>The only thing you have to do is to ensure that no branch is merged without being strictly on top of master. The simplest solution is to manually keep track of the branches that should be merged:</p>
+<ul>
+<li>Whenever someone wants to merge, their branch is enqueued.</li>
+<li>Exactly one person pops branches from the queue, rebases them, and merges them if CI is happy.</li>
+</ul>
+<p>This is a very tedious process and is better automatized by tools like <a href="https://github.com/bors-ng/bors-ng">bors-ng</a>.</p>
+<div class="story">
+
+<h3 id="the-poor-mans-merge-queue">The Poor Man’s Merge Queue</h3>
+<p>Merge queues need not be fancy. The first time we realized that we were wasting a lot of time fixing rebase issues, my team and I came up with a very simple solution: keep the PR numbers in a Slack channel’s “topic” field. Got a PR you want to merge? Add it to the right of the list. The left-most PR has either been merged or failed CI? Remove it from the list, and rebase the new left-most PR.</p>
+<div style="display: inline-block;">
+<figure style="float: left;">
+<img src="../images/slack-topic-merge-queue.png" alt="Where does it end">
+<figcaption>
+Save some cost! DIY merge queue.
+</figcaption>
+</figure>
+</div>]]></summary>
+</entry>
+<entry>
     <title>cio%3A cached HTTP requests for a smooth Jupyter experience!</title>
     <link href="http://www.nmattia.com/posts/2018-08-21-cio-cached-http-requests-jupyter.html" />
     <id>http://www.nmattia.com/posts/2018-08-21-cio-cached-http-requests-jupyter.html</id>
@@ -1438,74 +1656,6 @@ $ time posts/2016-07-31-bfs-tree 1 10000000000
 Nothing
 posts/2016-07-31-bfs-tree 1 10000000000  1.49s user 0.62s system 99% cpu 2.111 total</code></pre>
 <p>To get it to run on larger inputs, I suspect one would need to find a better algorithm. It would maybe even allow replacing <code>Int</code>s with <code>Integer</code>s. Once again, if you do find something, please get in touch : )</p>]]></summary>
-</entry>
-<entry>
-    <title>Parallel Computing with DNA</title>
-    <link href="http://www.nmattia.com/posts/2015-04-20-parallel-dna.html" />
-    <id>http://www.nmattia.com/posts/2015-04-20-parallel-dna.html</id>
-    <published>2015-04-20T00:00:00Z</published>
-    <updated>2015-04-20T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>DNA. Everybody knows that DNA is the blueprint by which our cells replicate. Everybody knows that Horatio Caine uses it to catch bad guys. <strong>But… what if we used DNA to build supercomputers?</strong> That is definitely science-fiction… or is it? As I was working on DNA computing, I got my fair share of people staring at me like I was crazy. Someone even asked me if I could find a way to take a bird’s DNA to grow an optimal plane out of it. <strong>I thought I would demystify it a bit.</strong></p>
-<p><img src="/images/blueprint.jpg" style="float:left;width:250px;padding:15px" /></p>
-<h3 id="a-bit-of-history">A bit of history</h3>
-<p>In 1994, <a href="https://en.wikipedia.org/wiki/Leonard_Adleman">Leonard Adleman</a> (which you may know as the <em>A</em> in <em><a href="https://en.wikipedia.org/wiki/RSA_(cryptosystem)">RSA</a></em>) showed that it was possible to <strong>solve</strong> some pretty <strong>difficult problems</strong>, just by <strong>using DNA</strong> and other cell-reproduction related stuff. <em>Wait, what?</em> Did he just recreate a Primordial-Soup-like environment, and waited until an organic supercomputer evolved from it, somehow following the rules of natural selection? Well, not exactly. But we’ll come to how things work in a minute.</p>
-<h5 id="dna-but-why">DNA… but why?</h5>
-<p>It is important to understand the reasons <em>why</em> people came to study DNA Computing. The problem Adleman was trying to solve was <a href="https://en.wikipedia.org/wiki/NP-complete"><em>really</em> difficult</a>. It is called the <em><a href="https://en.wikipedia.org/wiki/Hamiltonian_path_problem">Hamiltonian Path Problem</a></em> (but let’s call it <em>The Roadtrip Problem</em>), and it goes something like this:</p>
-<ul>
-<li>Take a map</li>
-<li>Cut out a part of the map, and you’ll be left with a few cities, linked by roads</li>
-<li>Grab a pen. Can you trace a <strong>path</strong> that goes through <strong>every city exactly once</strong>, following the roads? <img src="/images/hamilton.jpg" style="float:right;width:350px"/></li>
-</ul>
-<p>Roadtrip problem. Alright. The idea is this: <strong>the more cities</strong> you have, <strong>the longer</strong> it will take you to find out. And unfortunately, if you double the number of cities, you will probably need more than twice the amount of time to solve the new problem. And that means that if you just <strong>try every solution</strong> one after another, it is going to take an awful amount of time. Wouldn’t it be nice if you could try <strong>several</strong> of those possibilities <strong>at once</strong>?</p>
-<p>This is basically the reason why computers nowadays have more that one core working at a time. It usually goes from two to eight, the latter more often than the former. Still, if a problem takes one year to be solved on a single core, using 8-cores instead would still take a month and a half. Not that cool if you need the results to do something else, huh? Well, that’s why super computers exist, hosting 250k+ cores. Your one-year-problem now takes about two minutes.</p>
-<p><img src="/images/cities-comarison.jpg"
-style="float:left;width:350px;padding:10px"/> Sometimes even that is not sufficient (which is kind of a good thing in regards to <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">cryptography</a>, for instance). One of the <strong>fastest algorithms</strong> for solving our roadtrip problem runs in <br /><span class="math display"><em>O</em>(<em>n</em><sup>2</sup>2<sup><em>n</em></sup>)</span><br />. Basically that means that if a computer takes two thousandths of a second to solve the problem with eight cities, the same computer will need two minutes with sixteen cities, and a bit less than <strong>a week to compute a result</strong> for thirty-two cities. Most of that huge growth in time in regards of the number of cities comes from the exponential term <br /><span class="math display">2<sup><em>n</em></sup></span><br /> , and the multiplication by <br /><span class="math display"><em>n</em><sup>2</sup></span><br /> does not help at all.</p>
-<p>When scenarios like that show up, it drives some scientists mad, and sometimes gives them weird ideas. Among those is trying to solve NP-Complete problems with DNA.</p>
-<h3 id="dna-algorithms">DNA algorithms</h3>
-<p><strong>DNA strands</strong> are like little strings (or sentences) containing <strong>information</strong>, in the form of four <a href="https://en.wikipedia.org/wiki/Nucleobase">characters</a>: <strong>A</strong>, <strong>T</strong>, <strong>C</strong> and <strong>G</strong>. It happens that the characters <strong>A</strong> and <strong>T</strong> attract each other, and the same goes for <strong>C</strong> and <strong>G</strong> (if like me you can never remember which goes with which, it’s <a href="http://www.amazon.com/Gödel-Escher-Bach-Eternal-Golden/dp/0465026567">very simple</a>: <strong>A</strong>chilles and the <strong>T</strong>ortoise form a pair, and so do the <strong>C</strong>rab and his <strong>G</strong>enes). Characters of such pairs are called <em><a href="https://en.wikipedia.org/wiki/Complementarity_(molecular_biology)">complementary</a></em> to one another. If two DNA strands happen to contain sequences of complementary characters, they will attract each other, and clamp together, giving long <strong>DNA</strong> strands their <strong><a href="https://en.wikipedia.org/wiki/Nucleic_acid_double_helix">sexy shape</a></strong>.</p>
-<p>Now, let’s be serious, it’s 2015. And in 2015 you can <strong>design your DNA</strong> strands and have them produced. Let’s do exactly that (at least the design part). Bear with me for a minute, and imagine that we have our own DNA-strand-printer. Let’s design a simple DNA strand, containing a <strong><em>G</em></strong> character followed by <strong>9</strong> <strong><em>A</em></strong> characters:</p>
-<blockquote>
-<p><strong><em>GAAAAAAAAA</em></strong></p>
-</blockquote>
-<blockquote>
-<p><em>(a DNA strand, not somehow’s death throe)</em></p>
-</blockquote>
-<p>Alright. Let’s call that strand <strong><em>N</em></strong>. Also, let’s print it two thousand times. Now let’s create an other strand. It is composed of <strong>3</strong> <strong><em>T</em></strong> characters, surrounded by a <strong><em>C</em></strong> and a <strong><em>G</em></strong> :</p>
-<blockquote>
-<p><strong><em>CTTTG</em></strong></p>
-</blockquote>
-<p>We’ll print that one… let’s say ten thousand times (by the way, DNA is very tiny). Those strands we call <strong><em>d</em></strong>. Now we’ll go to the kitchen, grab a bucket, fill it up with water, and throw our twelve thousand DNA strands in it. <strong>Congratulations</strong>, you just built and programmed <strong>your first DNA computer</strong>!</p>
-<p><img src="/images/nine-minus-three.jpg" style="width:300px;float:right"/></p>
-<p>Let’s get that straight, right now: <strong>you won’t be running Minecraft on it anytime soon</strong>. But what exactly happens in the bucket? First of all, both strands contain complementary characters. The sequence <strong><em>TTT</em></strong> in <strong>d</strong> (our second strand) will tend to be attracted to any three <strong><em>A</em></strong>s in our first DNA strand <strong>N</strong>. Yet, it can do even better: the first four characters of <strong>d</strong>, namely <strong><em>CTTT</em></strong>, are a perfect complement to the first four characters of <strong>N</strong>: <strong><em>GAAA</em></strong>. They will clamp together, and leave out two tails: a simple <strong><em>G</em></strong> on one side, and <strong>6</strong> <strong><em>A</em></strong>s on the other side. Wait, <strong>this looks almost familiar…</strong></p>
-<p>Indeed, since DNA strands are flexible, the two tails will act as a new DNA strand <strong><em>GAAAAAA</em></strong>, which has the same structure as <strong>N</strong>, but with <strong>6</strong> <strong><em>A</em></strong>s instead of nine. You see where this is heading: <strong>the process will repeat itself!</strong> Another <strong>d</strong> strand will float by, and its leading <strong>C</strong> character will get hooked. Every time this happens, the number of <strong><em>A</em></strong> characters on our main string will be <strong>reduced by three!</strong> Eventually, there won’t be any <strong><em>A</em></strong> left on our strand, all covered with <strong><em>T</em></strong>s.</p>
-<p>What we just implemented is a division of <strong>9</strong> by <strong>3</strong>, effectively giving zero. The strand <strong>N</strong> encoded the number <strong>9</strong> with nine <strong><em>A</em></strong> characters, and the strand <strong>d</strong> encoded the subtraction by <strong>3</strong>, with three <strong><em>T</em></strong> characters. This is easily extended to any numbers, can be used e.g. for checking if a number is prime or not. The truly amazing part is that all the computations are <strong>(almost) completely parallel</strong>: you have <strong>thousands of pairs</strong> forming, <strong>independently</strong> of others!</p>
-<p>Of course, this is very theorethic, even though some succesful experimentation was <a href="http://www.dna.caltech.edu/~winfree/">done already</a>. It is still the very beginning of DNA computing, and the time it takes to run an algorithm exceeds by far that of a computer (if you can run the given algorithm in a first place). Yet, it is promising, and in the end theoricists don’t care that much if it will work one day.</p>
-<h3 id="my-contributions">My contributions</h3>
-<p>Last February, I completed a research project as part of my Master’s studies. I was able to provide solutions to several problems using <strong><em>DNA algorithms</em></strong>, like:</p>
-<ul>
-<li>Checking if a number is <strong>prime</strong></li>
-<li>Computing the <strong>square root</strong> of a number</li>
-<li>Implementing <strong>binary inputs</strong> for DNA problems</li>
-</ul>
-<p>and also did some analysis on how fast/how reliable such algorithms were. The improvements compared to other DNA based computing are that</p>
-<ol type="1">
-<li>it is more scalable (at least theoretically)</li>
-<li>it only uses DNA strands (Adleman, for instance, also used enzymes).</li>
-</ol>
-<p>If you are hungry for DNA algorithm knowledge, have any questions, or want to complain about anything: just drop me a word in the comments below!</p>
-<p><em>There are many problems (and solutions!) related to computing with DNA, and some of the following might be interesting to the reader:</em></p>
-<ul>
-<li>Adleman, L.M.: Molecular computation of solutions to combinatorial problems. In: Science Magazine. (November 2009)</li>
-<li>Zhang, D.Y., Winfree, E.: Control of dna strand displacement kinetics using toehold exchange. In: J A C S Articles. (June 2009)</li>
-<li>Qian, L., Winfree, E.: Scaling up digital circuit computation with dna strand displacement cascades. In: Science Magazine. (June 2011)</li>
-</ul>
-<p><em>Also, Microsoft developed <a href="http://research.microsoft.com/en-us/projects/dna/">a tool</a> for visualizing DNA computing. Have fun!</em></p>
-<script type="text/javascript"     src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<script type="text/x-mathjax-config">
- MathJax.Hub.Config({
-     tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
-     });
-     </script>]]></summary>
 </entry>
 
 </feed>
