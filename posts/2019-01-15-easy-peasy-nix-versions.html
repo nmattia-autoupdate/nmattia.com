@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <!-- proper charset -->
+        <meta charset="utf-8">
+        <!-- Disable mobile scaling -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <title>Nicolas Mattia</title>
+
+        <!-- Appended '?v=X' for dirtying cache -->
+        <link rel="stylesheet" type="text/css" href="../css/default.css?v=1" />
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Varela+Round" rel="stylesheet">
+        <link rel="stylesheet" href="../css/font-awesome/css/font-awesome.min.css">
+        <link rel="alternate" type="application/atom+xml" title="nmattia Atom feed" href="../atom.xml?type=blog" />
+        <link rel="alternate" type="application/rss+xml" title="nmattia RSS feed" href="../rss.xml?type=blog" />
+    </head>
+
+    <body>
+        <div class="main">
+            <div class="header">
+                <div class="logo">
+                    <a href="../" class="home">Nicolas Mattia</br></a>
+                    <div class="links">
+                        <a href="https://www.github.com/nmattia"><i class="fa fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/nicolas-mattia/"><i class="fa fa-linkedin"></i></a>
+                        <a href="mailto:nicolas@nmattia.com"><i class="fa fa-envelope-o"></i></a>
+                    </div>
+                </div>
+                <div class="nav">
+                    <ul>
+                        <li><a href="../">home</a></li>
+                        <li><a href="../blog.html">blog</a></li>
+                        <li><a href="../about.html">about</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content">
+                <style>
+.story {
+  background-color: lightblue;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+</style>
+<h1 id="easy-peasy-nix-versions">Easy Peasy Nix Versions</h1>
+<p>This is a convention for using third-party packages in Nix. It has a simple directory structure, makes using the packages straightforward and automatizes updates.</p>
+<hr />
+<p>Where should you declare the third-party packages you use in your Nix project? Should all specs be declared in the <code>default.nix</code>? Should each third-party package get its own directory with a <code>default.nix</code> and a <code>spec.src.json</code>? Or maybe the specs should only exist at call site, potentially duplicated if the package is used in different places? I settled on a simple convention which I’ve been using for a year across all my personal and work Nix projects.</p>
+<p>The idea is to use a single JSON file to store all versions rather than having each package in a directory defining its URL and version separately (I tend to get lost with the latter). Two more files are involved: one that acts as glue between JSON and Nix, and one that automatizes the package updates. It’s not a full-blown solution like <a href="https://www.youtube.com/watch?v=DHOLjsyXPtM">require.nix</a> (a.k.a. <a href="https://github.com/nix-community/flake">flake.nix</a>) but it does the job very well for small- to medium-sized project.</p>
+<h2 id="specifying-and-fetching-third-party-packages">Specifying and fetching third-party packages</h2>
+<p>We’ll take the <a href="https://github.com/nmattia/homies">homies</a> repository as an example.</p>
+<div class="story">
+<p><a href="https://github.com/nmattia/homies">homies</a> is a Nix-based reproducible environment, you can read about it in the <a href="https://nmattia.com/posts/2018-03-21-nix-reproducible-setup-linux-macos.html">dedicated article</a>.</p>
+</div>
+<p>If you checkout the repository you’ll see a <code>nix/</code> directory with two files: <code>versions.json</code> and <code>fetch.nix</code>. The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/versions.json"><code>nix/versions.json</code></a> file contains information about <em>where</em> to find each of the third-party packages:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode json"><code class="sourceCode json"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="dt">&quot;nixpkgs&quot;</span><span class="fu">:</span> <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">    <span class="dt">&quot;owner&quot;</span><span class="fu">:</span> <span class="st">&quot;NixOS&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4">    <span class="dt">&quot;repo&quot;</span><span class="fu">:</span> <span class="st">&quot;nixpkgs-channels&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">    <span class="dt">&quot;branch&quot;</span><span class="fu">:</span> <span class="st">&quot;nixos-18.09&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">    <span class="dt">&quot;rev&quot;</span><span class="fu">:</span> <span class="st">&quot;9d608a6f592144b5ec0b486c90abb135a4b265eb&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">    <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;03brvnpqxiihif73agsjlwvy5dq0jkfi2jh4grp4rv5cdkal449k&quot;</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  <span class="fu">},</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  <span class="dt">&quot;snack&quot;</span><span class="fu">:</span> <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">    <span class="dt">&quot;owner&quot;</span><span class="fu">:</span> <span class="st">&quot;nmattia&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">    <span class="dt">&quot;repo&quot;</span><span class="fu">:</span> <span class="st">&quot;snack&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">    <span class="dt">&quot;branch&quot;</span><span class="fu">:</span> <span class="st">&quot;master&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">    <span class="dt">&quot;rev&quot;</span><span class="fu">:</span> <span class="st">&quot;9754f4120d28ce25888a608606deddef9f490654&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">    <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;1a2gcap2z41vk3d7cqydj880lwcpxljd49w6srb3gplciipha6zv&quot;</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  <span class="fu">}</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="fu">}</span></a></code></pre></div>
+<p>Each third-party package is given a name, like <code>nixpkgs</code> or <code>snack</code> in the above example. That name is used as a key in a JSON dictionary. For each package the corresponding value is the GitHub repository information as well as the <code>sha256</code> for <code>fetchurl</code> (this is tailored for GitHub, but make sure to read the <a href="#closing-thoughts">closing thoughts</a> for ideas). The <code>branch</code> attribute is not used by Nix but comes in handy for <a href="#updating-third-party-packages">updating the packages</a>.</p>
+<p>The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file is a wrapper for using the third-party packages in your Nix code. The third-party packages are retrieved using the name you gave them in the JSON file; see the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/default.nix"><code>default.nix</code></a> in <a href="https://github.com/nmattia/homies">homies</a>:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode nix"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">with</span> { fetch = import ./nix/fetch.nix<span class="kw">;</span> };</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="bu">let</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="ex">pkgs</span> = import fetch.nixpkgs <span class="dt">{}</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="ex">snack</span> = (import fetch.snack)<span class="ex">.snack-exe</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="ex">...</span></a></code></pre></div>
+<p>The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file creates a record where the keys are the package names (<code>nixpkgs</code>, <code>snack</code>) and the values are the unpacked archives. Neat, heh?</p>
+<p>The first time I used this scheme it greatly simplified my life, because I knew exactly where all the third-party packages were defined. No more going up and down directory trees to figure out <em>this</em> or <em>that</em> package’s repo name, and moreover it only takes a second to check whether any package is defined locally or if you’re pulling it from GitHub. Another benefit of this approach is that it makes updating the packages super easy as well. Read on!</p>
+<h2 id="updating-third-party-packages">Updating third-party packages</h2>
+<p>If your third-party package specs are spread all over your codebase, updating them all will take ages. With the approach described above updating all packages only takes a bash loop and some <a href="https://stedolan.github.io/jq/"><code>jq</code></a>-ing. The <a href="https://github.com/nmattia/homies">homies</a> repo has a single update script, <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update"><code>script/update</code></a>. It takes the path to the <code>versions.json</code> file and a list of packages to update (below I stick to a single package for simplicity’s sake):</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="va">versions=</span>...    # <span class="ex">The</span> file <span class="kw">`</span><span class="ex">versions.json</span><span class="kw">`</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="va">package=</span>...     # <span class="ex">The</span> package to update</a></code></pre></div>
+<p>Then it reads that package’s owner, repository name and the branch that we’re tracking:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="va">owner=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].owner&quot;</span><span class="va">)</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="va">repo=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].repo&quot;</span><span class="va">)</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="va">branch=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].branch&quot;</span><span class="va">)</span></a></code></pre></div>
+<p>Using this it retrieves the GitHub URL and calls <code>nix-prefetch-url</code> to compute the sha256:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="co"># Ask GitHub what the latest commit (revision) is on $branch:</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="va">new_rev=$(</span><span class="ex">curl</span> -sfL \</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">            https://api.github.com/repos/<span class="va">$owner</span>/<span class="va">$repo</span>/git/refs/heads/<span class="va">$branch</span> \</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">            <span class="kw">|</span> <span class="ex">jq</span> -r .object.sha<span class="va">)</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="co"># Craft the URL of that commit's archive:</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6"><span class="va">url=</span>https://github.com/<span class="va">$owner</span>/<span class="va">$repo</span>/archive/<span class="va">$new_rev</span>.tar.gz</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7"><span class="co"># Compute the archive's sha256:</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8"><span class="va">new_sha256=$(</span><span class="ex">nix-prefetch-url</span> --unpack <span class="st">&quot;</span><span class="va">$url</span><span class="st">&quot;</span><span class="va">)</span></a></code></pre></div>
+<p>Finally it re-reads the <code>versions.json</code> content, updates the <code>rev</code> and <code>sha256</code> attributes of that package, and writes it back to <code>versions.json</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="va">res=$(</span><span class="fu">cat</span> <span class="va">$versions</span> \</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">    <span class="kw">|</span> <span class="ex">jq</span> -rM <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].rev = </span><span class="dt">\&quot;</span><span class="va">$new_rev</span><span class="dt">\&quot;</span><span class="st">&quot;</span> \</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">    <span class="kw">|</span> <span class="ex">jq</span> -rM <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].sha256 = </span><span class="dt">\&quot;</span><span class="va">$new_sha256</span><span class="dt">\&quot;</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">    <span class="va">)</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">$res</span><span class="st">&quot;</span> <span class="op">&gt;</span> <span class="va">$versions</span></a></code></pre></div>
+<p>Package: UPDATED!</p>
+<h2 id="closing-thoughts">Closing thoughts</h2>
+<p>As mentioned in the introduction, this is a convention and should be tweaked to fit your needs. The important points are:</p>
+<ul>
+<li>All versions and package specs should live in a single file.</li>
+<li>The specs should be machine readable for automated update.</li>
+</ul>
+<p>When I create a new Nix project I simply copy over the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file and the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update">update script</a>. This cannot be abstracted away in a separate repo because there’s a chicken and egg problem: if this is a Nix “library”, how do we fetch it?</p>
+<p>The <code>versions.json</code> file is very simple; YMMV. For instance you could store URLs instead of GitHub repositories (you should then also tweak the update script). The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update"><code>script/update</code></a> can also be adapted to your needs; for instance, in <a href="https://github.com/nmattia/homies">homies</a>, it’s possible to only compute the <code>sha256</code> without pulling the branch’s latest revision. That’s super convenient when adding new packages: you don’t have to call <code>nix-prefetch-url</code> by hand!</p>
+<p><a href="https://zimbatm.com/">zimbatm</a> – thanks for reviewing this post bro – also started work on something similar which you might want to check out: <a href="https://github.com/zimbatm/nix-path">nix-path</a></p>
+            </div>
+        </div>
+
+        <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-82921132-1', 'auto');
+    ga('send', 'pageview');
+
+        </script>
+    </body>
+</html>

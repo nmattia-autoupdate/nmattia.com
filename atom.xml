@@ -8,8 +8,93 @@
         <name>Nicolas Mattia</name>
         <email>nicolas@nmattia.com</email>
     </author>
-    <updated>2019-01-08T00:00:00Z</updated>
+    <updated>2019-01-15T00:00:00Z</updated>
     <entry>
+    <title>Easy Peasy Nix Versions</title>
+    <link href="http://www.nmattia.com/posts/2019-01-15-easy-peasy-nix-versions.html" />
+    <id>http://www.nmattia.com/posts/2019-01-15-easy-peasy-nix-versions.html</id>
+    <published>2019-01-15T00:00:00Z</published>
+    <updated>2019-01-15T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<style>
+.story {
+  background-color: lightblue;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+</style>
+<h1 id="easy-peasy-nix-versions">Easy Peasy Nix Versions</h1>
+<p>This is a convention for using third-party packages in Nix. It has a simple directory structure, makes using the packages straightforward and automatizes updates.</p>
+<hr />
+<p>Where should you declare the third-party packages you use in your Nix project? Should all specs be declared in the <code>default.nix</code>? Should each third-party package get its own directory with a <code>default.nix</code> and a <code>spec.src.json</code>? Or maybe the specs should only exist at call site, potentially duplicated if the package is used in different places? I settled on a simple convention which I’ve been using for a year across all my personal and work Nix projects.</p>
+<p>The idea is to use a single JSON file to store all versions rather than having each package in a directory defining its URL and version separately (I tend to get lost with the latter). Two more files are involved: one that acts as glue between JSON and Nix, and one that automatizes the package updates. It’s not a full-blown solution like <a href="https://www.youtube.com/watch?v=DHOLjsyXPtM">require.nix</a> (a.k.a. <a href="https://github.com/nix-community/flake">flake.nix</a>) but it does the job very well for small- to medium-sized project.</p>
+<h2 id="specifying-and-fetching-third-party-packages">Specifying and fetching third-party packages</h2>
+<p>We’ll take the <a href="https://github.com/nmattia/homies">homies</a> repository as an example.</p>
+<div class="story">
+<p><a href="https://github.com/nmattia/homies">homies</a> is a Nix-based reproducible environment, you can read about it in the <a href="https://nmattia.com/posts/2018-03-21-nix-reproducible-setup-linux-macos.html">dedicated article</a>.</p>
+</div>
+<p>If you checkout the repository you’ll see a <code>nix/</code> directory with two files: <code>versions.json</code> and <code>fetch.nix</code>. The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/versions.json"><code>nix/versions.json</code></a> file contains information about <em>where</em> to find each of the third-party packages:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode json"><code class="sourceCode json"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="dt">&quot;nixpkgs&quot;</span><span class="fu">:</span> <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">    <span class="dt">&quot;owner&quot;</span><span class="fu">:</span> <span class="st">&quot;NixOS&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4">    <span class="dt">&quot;repo&quot;</span><span class="fu">:</span> <span class="st">&quot;nixpkgs-channels&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">    <span class="dt">&quot;branch&quot;</span><span class="fu">:</span> <span class="st">&quot;nixos-18.09&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">    <span class="dt">&quot;rev&quot;</span><span class="fu">:</span> <span class="st">&quot;9d608a6f592144b5ec0b486c90abb135a4b265eb&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">    <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;03brvnpqxiihif73agsjlwvy5dq0jkfi2jh4grp4rv5cdkal449k&quot;</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  <span class="fu">},</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  <span class="dt">&quot;snack&quot;</span><span class="fu">:</span> <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">    <span class="dt">&quot;owner&quot;</span><span class="fu">:</span> <span class="st">&quot;nmattia&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">    <span class="dt">&quot;repo&quot;</span><span class="fu">:</span> <span class="st">&quot;snack&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">    <span class="dt">&quot;branch&quot;</span><span class="fu">:</span> <span class="st">&quot;master&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">    <span class="dt">&quot;rev&quot;</span><span class="fu">:</span> <span class="st">&quot;9754f4120d28ce25888a608606deddef9f490654&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">    <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;1a2gcap2z41vk3d7cqydj880lwcpxljd49w6srb3gplciipha6zv&quot;</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  <span class="fu">}</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="fu">}</span></a></code></pre></div>
+<p>Each third-party package is given a name, like <code>nixpkgs</code> or <code>snack</code> in the above example. That name is used as a key in a JSON dictionary. For each package the corresponding value is the GitHub repository information as well as the <code>sha256</code> for <code>fetchurl</code> (this is tailored for GitHub, but make sure to read the <a href="#closing-thoughts">closing thoughts</a> for ideas). The <code>branch</code> attribute is not used by Nix but comes in handy for <a href="#updating-third-party-packages">updating the packages</a>.</p>
+<p>The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file is a wrapper for using the third-party packages in your Nix code. The third-party packages are retrieved using the name you gave them in the JSON file; see the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/default.nix"><code>default.nix</code></a> in <a href="https://github.com/nmattia/homies">homies</a>:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode nix"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">with</span> { fetch = import ./nix/fetch.nix<span class="kw">;</span> };</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="bu">let</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="ex">pkgs</span> = import fetch.nixpkgs <span class="dt">{}</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="ex">snack</span> = (import fetch.snack)<span class="ex">.snack-exe</span><span class="kw">;</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="ex">...</span></a></code></pre></div>
+<p>The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file creates a record where the keys are the package names (<code>nixpkgs</code>, <code>snack</code>) and the values are the unpacked archives. Neat, heh?</p>
+<p>The first time I used this scheme it greatly simplified my life, because I knew exactly where all the third-party packages were defined. No more going up and down directory trees to figure out <em>this</em> or <em>that</em> package’s repo name, and moreover it only takes a second to check whether any package is defined locally or if you’re pulling it from GitHub. Another benefit of this approach is that it makes updating the packages super easy as well. Read on!</p>
+<h2 id="updating-third-party-packages">Updating third-party packages</h2>
+<p>If your third-party package specs are spread all over your codebase, updating them all will take ages. With the approach described above updating all packages only takes a bash loop and some <a href="https://stedolan.github.io/jq/"><code>jq</code></a>-ing. The <a href="https://github.com/nmattia/homies">homies</a> repo has a single update script, <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update"><code>script/update</code></a>. It takes the path to the <code>versions.json</code> file and a list of packages to update (below I stick to a single package for simplicity’s sake):</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="va">versions=</span>...    # <span class="ex">The</span> file <span class="kw">`</span><span class="ex">versions.json</span><span class="kw">`</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="va">package=</span>...     # <span class="ex">The</span> package to update</a></code></pre></div>
+<p>Then it reads that package’s owner, repository name and the branch that we’re tracking:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="va">owner=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].owner&quot;</span><span class="va">)</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="va">repo=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].repo&quot;</span><span class="va">)</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="va">branch=$(</span><span class="fu">cat</span> <span class="va">$versions</span> <span class="kw">|</span> <span class="ex">jq</span> -r <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].branch&quot;</span><span class="va">)</span></a></code></pre></div>
+<p>Using this it retrieves the GitHub URL and calls <code>nix-prefetch-url</code> to compute the sha256:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="co"># Ask GitHub what the latest commit (revision) is on $branch:</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="va">new_rev=$(</span><span class="ex">curl</span> -sfL \</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">            https://api.github.com/repos/<span class="va">$owner</span>/<span class="va">$repo</span>/git/refs/heads/<span class="va">$branch</span> \</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">            <span class="kw">|</span> <span class="ex">jq</span> -r .object.sha<span class="va">)</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="co"># Craft the URL of that commit&#39;s archive:</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6"><span class="va">url=</span>https://github.com/<span class="va">$owner</span>/<span class="va">$repo</span>/archive/<span class="va">$new_rev</span>.tar.gz</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7"><span class="co"># Compute the archive&#39;s sha256:</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8"><span class="va">new_sha256=$(</span><span class="ex">nix-prefetch-url</span> --unpack <span class="st">&quot;</span><span class="va">$url</span><span class="st">&quot;</span><span class="va">)</span></a></code></pre></div>
+<p>Finally it re-reads the <code>versions.json</code> content, updates the <code>rev</code> and <code>sha256</code> attributes of that package, and writes it back to <code>versions.json</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="va">res=$(</span><span class="fu">cat</span> <span class="va">$versions</span> \</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">    <span class="kw">|</span> <span class="ex">jq</span> -rM <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].rev = </span><span class="dt">\&quot;</span><span class="va">$new_rev</span><span class="dt">\&quot;</span><span class="st">&quot;</span> \</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">    <span class="kw">|</span> <span class="ex">jq</span> -rM <span class="st">&quot;.[</span><span class="dt">\&quot;</span><span class="va">$package</span><span class="dt">\&quot;</span><span class="st">].sha256 = </span><span class="dt">\&quot;</span><span class="va">$new_sha256</span><span class="dt">\&quot;</span><span class="st">&quot;</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">    <span class="va">)</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">$res</span><span class="st">&quot;</span> <span class="op">&gt;</span> <span class="va">$versions</span></a></code></pre></div>
+<p>Package: UPDATED!</p>
+<h2 id="closing-thoughts">Closing thoughts</h2>
+<p>As mentioned in the introduction, this is a convention and should be tweaked to fit your needs. The important points are:</p>
+<ul>
+<li>All versions and package specs should live in a single file.</li>
+<li>The specs should be machine readable for automated update.</li>
+</ul>
+<p>When I create a new Nix project I simply copy over the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/nix/fetch.nix"><code>nix/fetch.nix</code></a> file and the <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update">update script</a>. This cannot be abstracted away in a separate repo because there’s a chicken and egg problem: if this is a Nix “library”, how do we fetch it?</p>
+<p>The <code>versions.json</code> file is very simple; YMMV. For instance you could store URLs instead of GitHub repositories (you should then also tweak the update script). The <a href="https://github.com/nmattia/homies/blob/b32cb0a02360968296ddea7463952c98e1af92d2/script/update"><code>script/update</code></a> can also be adapted to your needs; for instance, in <a href="https://github.com/nmattia/homies">homies</a>, it’s possible to only compute the <code>sha256</code> without pulling the branch’s latest revision. That’s super convenient when adding new packages: you don’t have to call <code>nix-prefetch-url</code> by hand!</p>
+<p><a href="https://zimbatm.com/">zimbatm</a> – thanks for reviewing this post bro – also started work on something similar which you might want to check out: <a href="https://github.com/zimbatm/nix-path">nix-path</a></p>]]></summary>
+</entry>
+<entry>
     <title>Hunt bugs down before they are merged!</title>
     <link href="http://www.nmattia.com/posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html" />
     <id>http://www.nmattia.com/posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html</id>
@@ -1547,115 +1632,6 @@ X X 2 2             X X X 4</code></pre>
 <a class="sourceLine" id="cb25-5" data-line-number="5">play <span class="dt">Down</span>  <span class="fu">=</span> locs <span class="fu">%=</span> merge</a>
 <a class="sourceLine" id="cb25-6" data-line-number="6">play <span class="dt">Left</span>  <span class="fu">=</span> rows <span class="fu">%=</span> merge</a>
 <a class="sourceLine" id="cb25-7" data-line-number="7">play <span class="dt">Right</span> <span class="fu">=</span> wors <span class="fu">%=</span> merge</a></code></pre></div>]]></summary>
-</entry>
-<entry>
-    <title>Puzzle solving in Haskell</title>
-    <link href="http://www.nmattia.com/posts/2016-07-31-bfs-tree.html" />
-    <id>http://www.nmattia.com/posts/2016-07-31-bfs-tree.html</id>
-    <published>2016-07-31T00:00:00Z</published>
-    <updated>2016-07-31T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p><em>This is a literate Haskell file. You can find this code on <a href="https://github.com/nmattia/nmattia.com/blob/master/posts/2016-07-31-bfs-tree.lhs">Github</a> and follow along in <code>ghci</code>.</em></p>
-<p>In order to warm up for a round of interviews next week, I’ve been playing around with coding puzzles. Those are usually solved using imperative languages, and I thought I’d have a go at them using Haskell. I’ll share today’s experience, which hopefully will convince you that purely functional languages are (sometimes) suitable for puzzles.</p>
-<p>====Disclaimer: <em>There is probably nothing new here. Also, there might be better solutions to solve the problem. I like this solution because it gave me an excuse to showcase Haskell’s laziness. Feel free to ping me if you come up with something better.</em></p>
-<p>====The puzzle Let’s start with the problem itself. You are given a number, <span class="math inline"><em>x</em><sub>0</sub></span>, and a target, <span class="math inline"><em>x</em><sub><em>f</em></sub></span>. You are allowed two functions: <span class="math inline"><em>f</em>(<em>x</em>) = 2<em>x</em> + 1</span> and <span class="math inline"><em>g</em>(<em>x</em>) = 3<em>x</em> + 1 .</span></p>
-<p>Give either the minimal number of applications of <span class="math inline"><em>f</em></span> and <span class="math inline"><em>g</em></span> that you need in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub></span> from <span class="math inline"><em>x</em><sub>0</sub></span>, or state that one cannot reach <span class="math inline"><em>x</em><sub><em>f</em></sub></span> from <span class="math inline"><em>x</em><sub>0</sub></span>.</p>
-<p>For instance:</p>
-<ul>
-<li><p>in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 4</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>, you need one application:</p>
-<p><span class="math inline"><em>x</em><sub><em>f</em></sub> = 4 = 3 ⋅ 1 + 1 = <em>g</em>(1) = <em>g</em>(<em>x</em><sub>0</sub>)</span></p></li>
-<li><p>in order to reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 10</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>, you need two applications:</p>
-<p><span class="math inline"><em>x</em><sub><em>f</em></sub> = 10 = 3 ⋅ 3 + 1 = <em>g</em>(3) = <em>g</em>(2 ⋅ 1 + 1) = <em>g</em> ∘ <em>f</em>(1) = <em>g</em> ∘ <em>f</em>(<em>x</em><sub>0</sub>)</span></p></li>
-<li><p>you cannot reach <span class="math inline"><em>x</em><sub><em>f</em></sub> = 8</span> from <span class="math inline"><em>x</em><sub>0</sub> = 1</span>.</p></li>
-</ul>
-<p>I like to think of the values as a tree where each node has degree <span class="math inline">2</span>. To get to a left child, apply <span class="math inline"><em>f</em></span>. To get to a right child, apply <span class="math inline"><em>g</em></span>. In this case the answer is equal to the depth of <span class="math inline"><em>x</em><sub><em>f</em></sub></span>, where the root is <span class="math inline"><em>x</em><sub>0</sub></span>. Now you just need to traverse the tree, starting from the root, until you find <span class="math inline"><em>x</em><sub><em>f</em></sub></span>. Using the following observation:</p>
-<ul>
-<li><span class="math inline">4 ⋅ <em>x</em> &gt; 3 ⋅ <em>x</em> + 1, ∀<em>x</em> &gt; 1</span></li>
-</ul>
-<p>we know that we can safely stop whenever we hit a node with depth <span class="math inline"><em>d</em> &gt; 4 ⋅ <em>x</em></span>.</p>
-<p><img src="/images/topcoder-tree.jpg" style="width:512px;padding:15px" /></p>
-<p>Clearly the number of nodes traversed (assuming a BFS) is proportional to the exponential of the depth (it is actually <span class="math inline">2<sup><em>d</em></sup></span>). But we also know that there is at least a factor <span class="math inline">2</span> between each “layer” (<span class="math inline">∀<em>x</em> &gt; 0, <em>f</em>(<em>x</em>) &gt; 2<em>x</em></span>). So we can conclude that <span class="math inline"><em>x</em><sub><em>f</em></sub> − <em>x</em><sub>0</sub> &gt; 2<sup><em>d</em></sup></span> and so our algorithm should run in <span class="math inline"><em>O</em>(<em>x</em><sub><em>f</em></sub> − <em>x</em><sub>0</sub>)</span>. Now let’s write some code.</p>
-<p>====The code</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">import</span> <span class="dt">System.Environment</span> (getArgs)</a></code></pre></div>
-<p>First we need to define a suitable tree structure. We define a binary tree in which each node holds some data. The data we will record is the node’s depth (or distance from the root) and a value:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Tree</span> <span class="fu">=</span> <span class="dt">T</span> {<span class="ot"> depth  ::</span> <span class="fu">!</span><span class="dt">Int</span></a>
-<a class="sourceLine" id="cb2-2" data-line-number="2">              ,<span class="ot"> value  ::</span> <span class="fu">!</span><span class="dt">Int</span></a>
-<a class="sourceLine" id="cb2-3" data-line-number="3">              ,<span class="ot"> l      ::</span> <span class="dt">Tree</span></a>
-<a class="sourceLine" id="cb2-4" data-line-number="4">              ,<span class="ot"> r      ::</span> <span class="dt">Tree</span> }</a></code></pre></div>
-<p>We keep the links to the children lazy so that we can build an infinite tree. Whenever we create a node it is very likely that we will need the data it contains, so we keep the data strict. This is a typical lazy spine/strict leaves structure, and has the added bonus of easily allowing GHC to unpack the <code>Int</code>s.</p>
-<p>Now, let’s build that tree:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="ot">mkTree ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">mkTree <span class="fu">=</span> go <span class="dv">0</span></a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">    go d v <span class="fu">=</span> <span class="dt">T</span> { depth <span class="fu">=</span> d</a>
-<a class="sourceLine" id="cb3-5" data-line-number="5">               , value <span class="fu">=</span> v</a>
-<a class="sourceLine" id="cb3-6" data-line-number="6">               , l     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb3-7" data-line-number="7">               , r     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">3</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>) }</a></code></pre></div>
-<p>Note that we don’t have to limit ourselves to the functions <span class="math inline"><em>f</em></span> and <span class="math inline"><em>g</em></span>. Here’s, for instance, a complete binary tree:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="co">-- As an example</span></a>
-<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ot">completeBinaryTree ::</span> <span class="dt">Tree</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">completeBinaryTree <span class="fu">=</span> go <span class="dv">0</span> <span class="dv">1</span></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">    go d v <span class="fu">=</span> <span class="dt">T</span> { depth <span class="fu">=</span> d</a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">               , value <span class="fu">=</span> v</a>
-<a class="sourceLine" id="cb4-7" data-line-number="7">               , l     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v )</a>
-<a class="sourceLine" id="cb4-8" data-line-number="8">               , r     <span class="fu">=</span> go (d <span class="fu">+</span> <span class="dv">1</span>) (<span class="dv">2</span> <span class="fu">*</span> v <span class="fu">+</span> <span class="dv">1</span>) }</a></code></pre></div>
-<p>This second tree would look like this:</p>
-<p><img src="/images/complete-binary-tree.jpg" style="width:512px;padding:15px" /></p>
-<p>Now comes the fun part, the breadth-first search (note that you typically don’t want to do a depth-first on an infinite tree). A typical implementation of a BFS uses a queue. It would go something like this:</p>
-<ul>
-<li>Dequeue a node from the queue and append it to an output list.</li>
-<li>Enqueue all this node’s children.</li>
-<li>Repeat until your queue is empty.</li>
-</ul>
-<p>This is a simplified version that will work just fine for a tree (we don’t need to check whether or not we have already visited the current node). If you know your functional data structures, you’ll recognize a typical queue:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"></a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="kw">data</span> <span class="dt">Queue</span> a <span class="fu">=</span> <span class="dt">Queue</span> {<span class="ot"> front ::</span> [a]</a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">                     ,<span class="ot"> back  ::</span> [a] }</a></code></pre></div>
-<p>Whenever you want to enqueue a value, you cons it on <code>back</code>. Whenever you want to dequeue a value, you uncons it from front. And whenever front is empty you replace it with back (in reverse order). This gives you worst-case <code>O(1)</code> for enqueue and dequeue operations, and <code>O(n)</code> for tail (that’s where you’ll reverse the back, see Okasaki’s <a href="https://www.cs.cmu.edu/~rwh/theses/okasaki.pdf">Purely Functional Data Structures</a> for a good overview).</p>
-<p>====The search</p>
-<p>Easy enough. Now we just need a <code>State Queue</code> monad, traverse the tree, and update our queue every time, discarding the old one. Also, we’ll need a <code>Writer [Tree]</code> to output the nodes. Right? Well, in our case we can do much simpler. We will simply use a list and take advantage of the language’s laziness. We’ll take a list of nodes and return a list of their children. It will extract the left and right children of a node, then move to the next node, repeat the process and concat the result.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">children <span class="fu">=</span> concatMap (\t <span class="ot">-&gt;</span> [l t, r t]) nodes</a></code></pre></div>
-<p>All good. Now we just need to bootstrap it:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">bfs ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Tree</span>]</a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">bfs root <span class="fu">=</span></a>
-<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="kw">let</span></a>
-<a class="sourceLine" id="cb7-4" data-line-number="4">    nodes <span class="fu">=</span> root <span class="fu">:</span> children</a>
-<a class="sourceLine" id="cb7-5" data-line-number="5">    children <span class="fu">=</span> concatMap (\t <span class="ot">-&gt;</span> [l t, r t]) nodes</a>
-<a class="sourceLine" id="cb7-6" data-line-number="6">  <span class="kw">in</span> nodes</a></code></pre></div>
-<p>Let’s check it out on our binary tree in <code>ghci</code>:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">λ<span class="fu">:</span> value <span class="fu">&lt;$&gt;</span> take <span class="dv">10</span> (bfs completeBinaryTree)</a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">[<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>,<span class="dv">7</span>,<span class="dv">8</span>,<span class="dv">9</span>,<span class="dv">10</span>]</a></code></pre></div>
-<p>Sweet! When <code>concatMap</code> is called the first time, it’ll split the root into its left and right children. This means that the root’s left child is now the second element in <code>nodes</code>. When <code>concatMap</code> has to work again, it’ll spit out first the left child’s own children, then the right child’s own children, etc, concating the children lists every time. Looks like we have a breadth-first search using a list instead of a queue! And added bonus, we got rid of <code>Queue</code>’s <code>O(n)</code> worst case, since we never even <code>tail</code>!</p>
-<p><img src="/images/queue-moving-window.jpg" style="width:512px;padding:15px" /></p>
-<p>In this case, a queue is nothing more than a window, or slice, of a list. Every time we enqueue, we expand the window to the right. Every time we dequeue, we shrink the window on the left. This is unfortunately not an all purpose queue. Once the first cell of the list is created, all the remaining ones must be determined already.</p>
-<p>The only thing left to do is to traverse the nodes produced by <code>bfs</code> until we hit either <span class="math inline"><em>x</em><sub><em>f</em></sub></span> or a number that we know is too large:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">distance ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">distance x0 xf <span class="fu">=</span> go nodes</a>
-<a class="sourceLine" id="cb9-3" data-line-number="3">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb9-4" data-line-number="4">    nodes <span class="fu">=</span> bfs <span class="fu">$</span> mkTree x0</a>
-<a class="sourceLine" id="cb9-5" data-line-number="5">    go (t<span class="fu">:</span>ts) <span class="fu">|</span> value t <span class="fu">==</span> xf     <span class="fu">=</span> <span class="dt">Just</span> <span class="fu">$</span> depth t</a>
-<a class="sourceLine" id="cb9-6" data-line-number="6">              <span class="fu">|</span> value t <span class="fu">&gt;</span> <span class="dv">4</span> <span class="fu">*</span> xf  <span class="fu">=</span> <span class="dt">Nothing</span> <span class="co">-- from analysis</span></a>
-<a class="sourceLine" id="cb9-7" data-line-number="7">              <span class="fu">|</span> otherwise         <span class="fu">=</span> go ts</a></code></pre></div>
-<p><em>Et voilà!</em> We can go a bit fancy and add a cli (that will happily crash on you on bad input):</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">main <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb10-3" data-line-number="3">  [x0, xf] <span class="ot">&lt;-</span> (read <span class="fu">&lt;$&gt;</span>) <span class="fu">&lt;$&gt;</span> getArgs</a>
-<a class="sourceLine" id="cb10-4" data-line-number="4">  print <span class="fu">$</span> distance x0 xf</a></code></pre></div>
-<p>Compiled with</p>
-<pre><code>$ ghc --make -O2 -funbox-strict-fields bfs-tree.lhs</code></pre>
-<p>the program runs to up to 10,000,000,000 under two seconds, which is not too bad. (Dell XPS 13, 2015)</p>
-<pre><code>$ time posts/2016-07-31-bfs-tree 1 3000000000
-Nothing
-posts/2016-07-31-bfs-tree 1 3000000000  0.57s user 0.13s system 99% cpu 0.708 total
-
-$time posts/2016-07-31-bfs-tree 1 6000000000
-Nothing
-posts/2016-07-31-bfs-tree 1 6000000000  1.04s user 0.19s system 99% cpu 1.230 total
-
-$ time posts/2016-07-31-bfs-tree 1 10000000000
-Nothing
-posts/2016-07-31-bfs-tree 1 10000000000  1.49s user 0.62s system 99% cpu 2.111 total</code></pre>
-<p>To get it to run on larger inputs, I suspect one would need to find a better algorithm. It would maybe even allow replacing <code>Int</code>s with <code>Integer</code>s. Once again, if you do find something, please get in touch : )</p>]]></summary>
 </entry>
 
 </feed>
