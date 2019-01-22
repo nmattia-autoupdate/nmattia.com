@@ -8,8 +8,98 @@
         <name>Nicolas Mattia</name>
         <email>nicolas@nmattia.com</email>
     </author>
-    <updated>2019-01-15T00:00:00Z</updated>
+    <updated>2019-01-22T00:00:00Z</updated>
     <entry>
+    <title>The 5 Raisons d'Être of Testing</title>
+    <link href="http://www.nmattia.com/posts/2019-01-22-the-5-raisons-detre-of-testing.html" />
+    <id>http://www.nmattia.com/posts/2019-01-22-the-5-raisons-detre-of-testing.html</id>
+    <published>2019-01-22T00:00:00Z</published>
+    <updated>2019-01-22T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<style>
+.story {
+  background-color: lightblue;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+</style>
+<h1 id="the-5-raisons-dêtre-of-testing">The 5 Raisons d’Être of Testing</h1>
+<p>I describe five of the reasons why I think tests are important:</p>
+<ul>
+<li>Ensure that the code you’ve written works.</li>
+<li>Ensure that the code you’ve written works tomorrow.</li>
+<li>Ensure that the code you’ve written works elsewhere.</li>
+<li>Spot usability issues early on.</li>
+<li>Show how your feature is supposed to work, and how it should be used.</li>
+</ul>
+<p><strong>important</strong>: None of the animals used in the examples were harmed in the making of this post.</p>
+<hr />
+<p>First, let’s get in the mood (or <a href="#ensure-that-the-code-youve-written-works">skip ahead</a>):</p>
+<div class="story">
+<p>You are a backend engineer at <code>MyCuteThings.com</code>, the famous website of cute things. Your boss comes to you and Tommy (your frontend sidekick) one Wednesday morning and declares:</p>
+<blockquote>
+<p>There shall be a <code>&quot;breed&quot;</code> dropdown listing two cat breeds: Persian and Siamese. When the user selects a breed in <code>&quot;breed&quot;</code> a picture of a cat of that breed shall be displayed to the user. Feature codename: “ninja”.</p>
+<p>– your boss</p>
+</blockquote>
+<p>Tommy will deal with the HTML, CSS, and whatever else frontend people use. Your job is to provide an API endpoint that will return the bytes of the correct picture. You find a picture of a very cute Persian cat that you save as <code>cat.png</code>. You take a picture of your very own Siamese cat that you save as <code>CAT.png</code>. You settle on the following REST call:</p>
+<pre><code>GET /cats?breed=&lt;nameOfTheBreed&gt;</code></pre>
+<p>The usage is <em>straightforward</em>:</p>
+<ul>
+<li>if <code>nameOfTheBreed</code> is <code>persian</code> then you read <code>cat.png</code>, return the resulting bytes and <code>200 OK</code>.</li>
+<li>if <code>nameOfTheBreed</code> is <code>siamese</code> then you read <code>CAT.png</code>, return the resulting bytes and <code>200 OK</code>.</li>
+<li>if <code>nameOfTheBreed</code> is anything else, you return zero bytes and <code>200 OK</code> (company policy GTE-421-f, introduced in 2003, forbids you from using <code>404</code>s).</li>
+</ul>
+</div>
+<p>Because we’re dealing with software, anything that can go wrong will go wrong. We’ll go over the five reasons I listed above in more details and we’ll see how tests can help you damage control.</p>
+<h2 id="ensure-that-the-code-youve-written-works">Ensure that the code you’ve written works</h2>
+<p>This may be the most straightforward reason to write tests. However, while it’s valuable to know that whatever you’ve just written works, it’s probably the least important reason.</p>
+<blockquote>
+<p>Testing that code works is the <em>raison d’être</em> of tests!!! How dare you say that it’s not important???</p>
+<p>– Jimmy from Nebraska</p>
+</blockquote>
+<p>Don’t get it twisted Jimmy, I didn’t say it was unimportant: the other reasons are just <em>more</em> important. Most of the time you’ll eventually try the feature (open the website, click <code>Siamese</code>, watch in awe as your cat appears on the screen) after having written the code – which is as much information as you’ll get from a test. You will catch bugs like “trying to open <code>cat.jpg</code> instead of <code>cat.png</code>” straight away anyway.</p>
+<p>Running tests as you write the code is mostly a time saver when you develop a feature, as you (usually) have a single command to run in order to check that you’ve done things correctly. Also, by writing tests close to your spec, it acts as a deadline (once your tests are green, you’re done, you can move on to something else). Moreover by <em>first</em> writing a (failing) test when tasked with fixing a bug you ensure that the bug actually exists. This is typical <a href="https://en.wikipedia.org/wiki/Test-driven_development">TDD</a>.</p>
+<h2 id="ensure-that-the-code-youve-written-works-elsewhere">Ensure that the code you’ve written works elsewhere</h2>
+<div class="story">
+<p>You wrote your feature and Tommy wrote his part. Feature “ninja” got merged into the master branch, after you diligently tested it out by hand. You go home that evening, and as you’re about to start watching the third season of The Wire (for the second time, because you first assumed you didn’t need English subtitles) you get an angry phone call from Jason, the sales rep working late nights because he’s demoing the product to people in another timezone. Jason explains that he can only get a picture of the Persian cat. Even when he picks the Siamese option from the dropdown. The debugging process goes like this:</p>
+<blockquote>
+<p>You: What OS are you using?</p>
+<p>Jason: What’s an <em>awe-hess</em>?</p>
+</blockquote>
+<p>At which point you realize that Jason is running your code on his Windows machine. Which, unfortunately enough, cannot tell the difference between <code>cat.png</code> and <code>CAT.png</code>. You sigh, put the remote down and go back to the drawing board.</p>
+</div>
+<p>Test suites are particularly important in projects that run in several environments. You’ve written code that works on your machine? Great, but it’s likely that you forgot to update some config and that the component you just wrote will break once it’s deployed somewhere else, because you relied on something specific to your (highly tuned, very particular) system.</p>
+<p>If you have a unit test, you’ll make sure it also works on the CI machine(s). If you have an integration test for it, you’ll make sure it works on the CI machine(s) and on the various clusters that a deploy goes through.</p>
+<h2 id="ensure-that-the-code-youve-written-works-tomorrow">Ensure that the code you’ve written works tomorrow</h2>
+<div class="story">
+<p>A month has passed, and not only are you relieved that Season 3 was much better that Season 2, but you’ve also forgotten all about feature “ninja”. You’re sitting at your desk at 5pm, eyeing the clock on the wall more and more frequently. Your boss comes out of his office, forehead sweating, cheeks blushed from anger. He scans the engineering room and his eyes lock on you. He starts walking in your direction. You think to yourself: “This can’t be good.”.</p>
+<p>Twenty minutes later, somewhat happy that your Saturday evening has freed up (your boss and his wife were supposed to come over for dinner), you’re going through git logs with one goal in mind: trying to find who to blame for removing the cat pictures from the repository, thereby breaking feature “ninja”.</p>
+<pre><code>commit 45d2fcd272a273c57033a493ca3df47a67f9bf01
+Author: Jenny Marshalls &lt;jen@mycutethings.com&gt;
+Date:   Tue Aug 21 01:15:33 2018 +0300
+
+    Remove unused kitten pictures</code></pre>
+<p>You start walking to her desk, coming up with as many irrational patriarchal arguments as possible to justify the lack of tests around your feature.</p>
+</div>
+<p>Say you write a feature that works (objectively) perfectly, although doesn’t have any associated tests. Then tomorrow I come around, and tweak your code to add a new feature, inadvertently breaking yours. Then you blame me for breaking my code. Don’t blame me.</p>
+<p>You can’t expect anyone else to anticipate all the implications when they’re tweaking your code, because most likely even <em>you</em> can’t. Hence it is your responsibility to add a test spec-ing the correct behavior of your feature – today and tomorrow.</p>
+<p><strong>SIDE NOTE:</strong> it goes without saying that commenting out tests is not the right way to shoehorn my new feature into your existing code, but that kind of stuff is hopefully caught during review.</p>
+<h2 id="spot-usability-issues-early-on">Spot usability issues early on</h2>
+<p>When you decide to write a test for your new feature you might realize that your interface is awkward to work with. This is really the simplest usability check that you can perform, namely eating your own dog food.</p>
+<p>Catching those issues before they’ve been merged, and before other code relies on it, means that other people will appreciate working with your code more (and thereby making people more inclined to try and understand and reuse your feature – rather than duplicating it) and it will ease the learning process for newcomers.</p>
+<h2 id="show-how-your-feature-is-supposed-to-work-and-how-it-should-be-used">Show how your feature is supposed to work and how it should be used</h2>
+<div class="story">
+<p>It’s been three weeks since you blew your chance at a promotion. In order to avoid similar situations in the future, you’ve added tests. Feature “ninja” has been working seamlessly ever since.</p>
+<p>Your sidekick Tommy tells you that Jenny needs help using a backend feature that you wrote. Things have been weird with Jenny, you still feel guilty for blaming her for the missing pictures and for the way you reacted to the situation. You’ve tried your best to avoid a confrontation since then.</p>
+<p><em>Tell her to look at the tests</em>, you tell Tommy.</p>
+</div>
+<p>Reading tests is a great way to figure out how something is supposed to work. It shows what the input should look like, and what the output will look like. It shows what your feature can do as well.</p>
+<p>If your feature has no associated examples or tests, the user has to rely on the source code and on potentially out-of-date documentation to figure out how it should (and should <em>not</em>) be used. A test is so much nicer.</p>
+<hr />
+<h2 id="conclusion">Conclusion</h2>
+<p>The bottom line is that there’s more than one dimension to having a working codebase: it should be future proof, function in different environments, be usable, and be self-describing. Tests are a great way to achieve this, and when you pair them with a <a href="posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html">good process</a> you’ll become king of the world. Or at least a happy and efficient programmer, part of a happy team.</p>]]></summary>
+</entry>
+<entry>
     <title>Easy Peasy Nix Versions</title>
     <link href="http://www.nmattia.com/posts/2019-01-15-easy-peasy-nix-versions.html" />
     <id>http://www.nmattia.com/posts/2019-01-15-easy-peasy-nix-versions.html</id>
@@ -1447,191 +1537,6 @@ Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;licen
 <a class="sourceLine" id="cb19-3" data-line-number="3"><span class="fu">rsync</span> ~/local/crack/encrypted-file user@remote:/home/crack/</a></code></pre></div>
 <p>This is basically what I did when I started writing this blog post this morning. First, I hoped that the script would actually test all the passphrases and that I didn’t miss some weird corner case that would make it skip <em>the</em> correct passphrase, or would make it fail to report a correct passphrase. Second, I also hoped that I did actually remember correctly those bits of the passphrase. My input was a bit bigger than the one presented here. My equivalent of <code>animals.txt</code> was <code>/usr/share/dict/american-english</code> which contains about 60k words. The words were tested alphabetically, and throughout the day I kept tabs on the progress. Around noon the script had already covered all the words starting with a capital letter. Around 4pm it was past the letter <code>n</code>, and at 10pm it had reached the letter <code>w</code>, still no match. Well, it turns out the missing word was <code>witch</code>, which is in the last 2 percent of the Ubuntu dictionary of English words! Still not sure how I came up with that, and also I’m glad I didn’t give up when I reached the letter <code>v</code> as I almost did (because how likely is it that it’ll be in the last 5%, right?).</p>
 <p>I surely learned a fair bit about <code>LUKS</code> and <code>GNU parallel</code> in the process, and hope you learned something too. Don’t hesitate to share your thoughts on this and please let me know if you spot something that’s not correct. Now I’ve got to go, it’s time for me to go look at childhood pictures (and pick a new passphrase).</p>]]></summary>
-</entry>
-<entry>
-    <title>Lens and Linear, 2048's logic in 22 lines</title>
-    <link href="http://www.nmattia.com/posts/2016-08-19-lens-linear-2048.html" />
-    <id>http://www.nmattia.com/posts/2016-08-19-lens-linear-2048.html</id>
-    <published>2016-08-19T00:00:00Z</published>
-    <updated>2016-08-19T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p><em>You can find this code on <a href="https://github.com/nmattia/2048-lens">Github</a> and follow along in <code>ghci</code>.</em></p>
-<p>Last week a friend of mine asked me how I would implement the game <a href="https://gabrielecirulli.github.io/2048/">2048</a> in Java (at least the update logic) and we gave it a try. It went something like this:</p>
-<ul>
-<li><p>So we need to represent the grid. I guess <code>int[][]</code> will do. Is this going to be an array of rows, or an array of columns? Either way we’ll need to stick to it. <em>huh</em></p></li>
-<li><p>Actually, it’ll be a sparse array, because not every cell will contain a value at all times. So an array of <code>Maybe int</code>. Oh right, <code>Integer</code>. We’ll need to remember to null-check. <em>huh</em></p></li>
-<li><p>The easiest would be to define the function to update a row/column once, and then apply it to the grid in different directions. Extract a row/column, process it, and place it back. Keeping track of the indices. <em>huh</em></p></li>
-</ul>
-<p>It is actually a problem that can be solved elegantly in Haskell using a few <a href="http://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Iso.html">Iso</a>s and <a href="http://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Traversal.html">Traversal</a>s. We’ll use the <a href="http://hackage.haskell.org/package/linear">linear</a> library for representing the data and the <a href="http://hackage.haskell.org/package/lens">lens</a> library for accessing it.</p>
-<h3 id="preparing-the-datatypes">Preparing the datatypes</h3>
-<p>We’ll represent our board as a <span class="math inline">4 × 4</span> matrix from linear:</p>
-<div style="text-align:center">
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">type</span> <span class="dt">Board</span> <span class="fu">=</span> <span class="dt">M44</span> (<span class="dt">Maybe</span> (<span class="dt">Sum</span> <span class="dt">Integer</span>))</a></code></pre></div>
-</div>
-<p>This is a simple, row-major matrix from linear. In order to make our life simpler we’ll define a function to display the board:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1">λ<span class="fu">:</span> <span class="kw">let</span><span class="ot"> display ::</span> <span class="dt">Board</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> (); display <span class="fu">=</span> Boxes.printBox <span class="fu">.</span> mkBox</a></code></pre></div>
-<p>I made <code>Board</code> an instance of <code>Default</code>, so we can instantiate our first board as follows:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1">λ<span class="fu">:</span> <span class="kw">let</span> board <span class="fu">=</span><span class="ot"> def ::</span> <span class="dt">Board</span></a></code></pre></div>
-<p>Let’s have a look:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">λ<span class="fu">:</span> display board</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb4-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb4-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a></code></pre></div>
-<p>Alright, nothing too exciting yet. This is simply a board filled with <code>Nothing</code>s. We’ll use this to start discovering linear’s vector and matrix representation. A matrix of type <code>M44</code> is nothing but a vector of vectors, stored in row-major order; a vector of matrix rows:</p>
-<div style="text-align:center">
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">type</span> <span class="dt">M44</span> a <span class="fu">=</span> <span class="dt">V4</span> (<span class="dt">V4</span> a)  <span class="co">-- Defined in ‘Linear.Matrix’</span></a></code></pre></div>
-</div>
-<p>The library has four very basic lenses for indexing into a vector: <code>_x</code>, <code>_y</code>, <code>_z</code> and <code>_w</code>. Let’s go to the <em>second row</em> (<code>_y</code>) of our board and set the <em>fourth element</em> (<code>_w</code>):</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"></a>
-<a class="sourceLine" id="cb6-2" data-line-number="2">λ<span class="fu">:</span> <span class="kw">import</span> <span class="dt">Control.Lens</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> _y <span class="fu">.</span> _w <span class="fu">.~</span> (<span class="dt">Just</span> <span class="dv">2</span>)</a>
-<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb6-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dv">2</span></a>
-<a class="sourceLine" id="cb6-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb6-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb6-10" data-line-number="10"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a></code></pre></div>
-<p>And it’s just that easy! Linear has a few other lenses for accessing elements and even vectors inside matrices. I definitely recommend checking it out.</p>
-<h3 id="lines-of-logic">22 Lines of logic</h3>
-<p>Let’s get back to our game. We first need an update function for the rows/columns. The game 2048 actually does not care about empty cells, wherever they are, it’ll just ignore them:</p>
-<div style="text-align:center">
-<pre><code>2 X 2 X             X X X 4
--------     ---&gt;    -------
-X X 2 2             X X X 4</code></pre>
-</div>
-<p>In this small example the user swiped right, and even though the rows differed, the result was the same (it’s not injective). We’ll simply take a list containing the non-empty cells as an input, and output a list of the resulting non-empty cells. Here are a few examples:</p>
-<pre><code>[2, 2]    -&gt; [4]
-[1, 2, 2] -&gt; [1, 4]
-[2, 1, 2] -&gt; [2, 1, 2]
-[2, 2, 2] -&gt; [4, 2]</code></pre>
-<p>We’ll specify some rules that might not correspond exactly to what the original game uses, but that will be good enough for us. When traversing a list:</p>
-<div style="text-align:center">
-<p><em>If two neighbors are equal, replace them by their sum.</em></p>
-</div>
-<p>The above is easily translated to Haskell code:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">merge ::</span> (<span class="dt">Eq</span> a, <span class="dt">Monoid</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a]</a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">merge (x<span class="fu">:</span>x&#39;<span class="fu">:</span>xs) <span class="fu">|</span> x <span class="fu">==</span> x&#39; <span class="fu">=</span> (x <span class="fu">&lt;&gt;</span> x&#39;) <span class="fu">:</span> merge xs</a>
-<a class="sourceLine" id="cb9-3" data-line-number="3">merge (x<span class="fu">:</span>xs)              <span class="fu">=</span> x <span class="fu">:</span> merge xs</a>
-<a class="sourceLine" id="cb9-4" data-line-number="4">merge []                  <span class="fu">=</span> []</a></code></pre></div>
-<p><em>Note that we’ve used a slightly more abstract version than <code>[Int] -&gt; [Int]</code>. This is useful for several reasons. For instance you might not have decided yet what type you are going to use to represent your cells (Int? Integer? An enumeration of the powers of two?). Also you might want to add a UI. In this case you will want to remember which cells were merged together so that you can play an animation. Below we will be using <code>Sum Integer</code>, the integers with addition as the monoidal composition (<code>&lt;&gt;</code>). </em></p>
-<p>There’s not much room for error. GHC infers that we have covered all input cases, and we only need to make sure that the code reflects the rule above. We can open up <code>ghci</code> and verify with our (limited) test-suite:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">[<span class="dv">4</span>]</a>
-<a class="sourceLine" id="cb10-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb10-4" data-line-number="4">λ<span class="fu">:</span> merge [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
-<a class="sourceLine" id="cb10-5" data-line-number="5">[<span class="dv">1</span>, <span class="dv">4</span>]</a>
-<a class="sourceLine" id="cb10-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb10-7" data-line-number="7">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
-<a class="sourceLine" id="cb10-8" data-line-number="8">[<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">2</span>]</a>
-<a class="sourceLine" id="cb10-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb10-10" data-line-number="10">λ<span class="fu">:</span> merge [<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>]<span class="ot"> ::</span> [<span class="dt">Sum</span> <span class="dt">Integer</span>]</a>
-<a class="sourceLine" id="cb10-11" data-line-number="11">[<span class="dv">4</span>, <span class="dv">2</span>]</a></code></pre></div>
-<p>Now we need to apply <code>merge</code> to different parts of the board. This is where the <a href="http://hackage.haskell.org/package/lens">lens</a> library comes in handy. More importantly <a href="http://hackage.haskell.org/package/linear">linear</a>’s good support for various types of lenses, particularly <code>Iso</code>s and <code>Traversal</code>s. Here’s my (instinctive) understanding of those:</p>
-<ul>
-<li>If you need to go back and forth between two datatypes <code>a</code> and <code>b</code>, you’ll need an <code>Iso' a b</code>.</li>
-<li>If you need to get several <code>b</code>s from a datatype <code>a</code>, you’ll need a <code>Traversal' a b</code>.</li>
-</ul>
-<p>Earlier we prepared a <code>Board</code>. Now we have a function that operates on <code>[a]</code>. We’ll want to traverse our board to get lists. We’ll want a <code>Traversal' Board [a]</code>. Or rather several <code>Traversal' Board [a]</code>, one for each of the four orientations:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1">rows, wors, cols,<span class="ot"> locs ::</span> <span class="dt">Traversal&#39;</span> (<span class="dt">M44</span> (<span class="dt">Maybe</span>  a)) [a]</a></code></pre></div>
-<p>The various directions are represented here:</p>
-<p><img src="/images/rows-wors-cols-locs.jpg" style="width:512px;padding:15px" /></p>
-<h3 id="setting-up-our-lenses">Setting up our lenses</h3>
-<p>Let’s start with <code>rows</code>. Once again, the type <code>M44</code> is nothing but a vector of vectors, or a <code>V4</code> of <code>V4</code>s.</p>
-<p><img src="/images/v4-v4-m44.jpg" style="width:512px;padding:15px" /></p>
-<p>The vector type <code>V4</code> is an instance of <a href="https://hackage.haskell.org/package/base-4.9.0.0/docs/Data-Traversable.html">Traversable</a> (not <em>Traversal</em>, which is a type) so we can use <code>traverse</code>:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">λ<span class="fu">:</span> <span class="fu">:</span>t traverse</a>
-<a class="sourceLine" id="cb12-2" data-line-number="2">traverse<span class="ot"> ::</span> (<span class="dt">Applicative</span> f, <span class="dt">Traversable</span> t) <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> f b) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> f (t b)</a></code></pre></div>
-<p>Simply put, <code>traverse</code> says</p>
-<div style="text-align:center">
-<p>If your <code>t</code> is <code>Traversable</code>, I’ll give you:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="dt">Traversal&#39;</span> (t a) a</a></code></pre></div>
-</div>
-<p>Since <code>M44 a</code> is <code>V4 (V4 a))</code> it says:</p>
-<div style="text-align:center">
-<p>Your <code>V4</code> is <code>Traversable</code>, so I’ll give you:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="dt">Traversal&#39;</span> (<span class="dt">M44</span> (<span class="dt">Maybe</span> a)) (<span class="dt">V4</span> (<span class="dt">Maybe</span> a))</a></code></pre></div>
-</div>
-<p>Good, so now we know how to get/set/act on each row of our board independently. Problem is that when traversing it, we are given the rows as <code>V4 (Maybe a)</code>s. But our function <code>merge</code> works on <code>[a]</code>s! Here come the Isos. We need an Iso that allows us to go back and forth between <code>V4 (Maybe a)</code> and <code>[a]</code>. The lens library comes with a handy function <code>iso</code> which builds an <code>Iso</code> from a pair of inverse functions. Here’s what we’ll use:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="ot">list ::</span> <span class="dt">Iso&#39;</span> (<span class="dt">V4</span> (<span class="dt">Maybe</span> a)) [a]</a>
-<a class="sourceLine" id="cb15-2" data-line-number="2">list <span class="fu">=</span> iso toList fromList</a>
-<a class="sourceLine" id="cb15-3" data-line-number="3">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-4" data-line-number="4">    toList v <span class="fu">=</span> reverse <span class="fu">$</span> catMaybes <span class="fu">$</span> foldl (flip (<span class="fu">:</span>)) [] v</a>
-<a class="sourceLine" id="cb15-5" data-line-number="5">    fromList (<span class="ot">xs ::</span> [a]) <span class="fu">=</span> <span class="dt">V4</span> (xs<span class="fu">^?</span>ix <span class="dv">0</span>) (xs<span class="fu">^?</span>ix <span class="dv">1</span>) (xs<span class="fu">^?</span>ix <span class="dv">2</span>) (xs<span class="fu">^?</span>ix <span class="dv">3</span>)</a></code></pre></div>
-<p>We have two operations here: <code>toList</code> and <code>fromList</code>. The first one simply copies all the <code>Just</code> values of a <code>V4</code> into a list, that is</p>
-<div style="text-align:center">
-<div class="sourceCode" id="cb16"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">toList ::</span> <span class="dt">V4</span> (<span class="dt">Maybe</span> a) <span class="ot">-&gt;</span> [a]</a></code></pre></div>
-</div>
-<p>whereas, on the other hand, <code>fromList</code> recreates a vector from a list. Since there can be fewer than four values in a list, <code>fromList</code> adds as many <code>Just</code>s as possible to the <code>V4</code>, and fill the rest with <code>Nothing</code>s. You will notice that this also takes care of “shifting” the values to the beginning of the vector.</p>
-<p>And, believe it or not, we’re almost done implementing our <code>rows</code> function. Here’s the last bit:</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1">rows <span class="fu">=</span> traverse <span class="fu">.</span> list</a></code></pre></div>
-<p>We traverse our matrix one row at a time, but before handing the row to the caller, we transform it to a list using <code>toList</code>. And when we’re handed back a list, we insert it in the matrix as a row using <code>fromList</code>. Let’s see the result by setting all rows to <code>[1,2,3]</code>:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> rows <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
-<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb18-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb18-4" data-line-number="4"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb18-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb18-6" data-line-number="6"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb18-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb18-8" data-line-number="8"><span class="dv">1</span>  <span class="dv">2</span>  <span class="dv">3</span>  <span class="dt">X</span></a></code></pre></div>
-<h3 id="for-a-few-isos-more">For a few Isos more</h3>
-<p>Now, let’s get started on <code>wors</code>, which should give us the reversed rows (when reading a row we start from the right-most element). The lens library has another handy abstraction: <a href="https://hackage.haskell.org/package/lens-4.14/docs/Control-Lens-Iso.html#t:Reversing">Reversing</a>. Any type that is an instance of <code>Reversing</code> gets the <code>reversed</code> iso for free. Let’s make <code>V4</code> an instance of <code>Reversing</code>:</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Reversing</span> (<span class="dt">V4</span> a) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb19-2" data-line-number="2">  reversing v <span class="fu">=</span> <span class="dt">V4</span> (v<span class="fu">^.</span>_w) (v<span class="fu">^.</span>_z) (v<span class="fu">^.</span>_y) (v<span class="fu">^.</span>_x)</a></code></pre></div>
-<p>and <code>wors</code> can now be implemented:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">wors <span class="fu">=</span> traverse <span class="fu">.</span> reversed <span class="fu">.</span> list</a></code></pre></div>
-<p>Facile, non? We get (vector) rows through <code>traverse</code>, reverse them, and <em>then</em> turn them into a list.</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> wors <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
-<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
-<a class="sourceLine" id="cb21-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb21-4" data-line-number="4"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
-<a class="sourceLine" id="cb21-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb21-6" data-line-number="6"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a>
-<a class="sourceLine" id="cb21-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb21-8" data-line-number="8"><span class="dt">X</span>  <span class="dv">3</span>  <span class="dv">2</span>  <span class="dv">1</span></a></code></pre></div>
-<p>On to the next one: <code>cols</code>. Getting columns is easy: transpose the matrix. The columns of the original matrix are now the rows of the transposed matrix. Earlier we used the <code>iso</code> function to build an <code>Iso'</code> between <code>V4 (Maybe a)</code> and <code>[a]</code>. We’ll use it again to create an <code>Iso</code> between a matrix and its transposed self:</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">transposed ::</span> <span class="dt">Iso&#39;</span> (<span class="dt">M44</span> a) (<span class="dt">M44</span> a)</a>
-<a class="sourceLine" id="cb22-2" data-line-number="2">transposed <span class="fu">=</span> iso transpose transpose</a></code></pre></div>
-<p><em>(If you know of a function <code>f = join iso</code>, please ping me. I couldn’t find it.)</em></p>
-<p>And now the two implementations for the columns and reversed columns:</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1">cols <span class="fu">=</span> transposed <span class="fu">.</span> rows</a>
-<a class="sourceLine" id="cb23-2" data-line-number="2">locs <span class="fu">=</span> transposed <span class="fu">.</span> wors</a></code></pre></div>
-<div class="sourceCode" id="cb24"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> cols <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
-<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span></a>
-<a class="sourceLine" id="cb24-3" data-line-number="3">          </a>
-<a class="sourceLine" id="cb24-4" data-line-number="4"><span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span></a>
-<a class="sourceLine" id="cb24-5" data-line-number="5">          </a>
-<a class="sourceLine" id="cb24-6" data-line-number="6"><span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span></a>
-<a class="sourceLine" id="cb24-7" data-line-number="7">          </a>
-<a class="sourceLine" id="cb24-8" data-line-number="8"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb24-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb24-10" data-line-number="10">λ<span class="fu">:</span> display <span class="fu">$</span> board <span class="fu">&amp;</span> locs <span class="fu">.~</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</a>
-<a class="sourceLine" id="cb24-11" data-line-number="11"><span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span>  <span class="dt">X</span></a>
-<a class="sourceLine" id="cb24-12" data-line-number="12">          </a>
-<a class="sourceLine" id="cb24-13" data-line-number="13"><span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span>  <span class="dv">3</span></a>
-<a class="sourceLine" id="cb24-14" data-line-number="14">          </a>
-<a class="sourceLine" id="cb24-15" data-line-number="15"><span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span>  <span class="dv">2</span></a>
-<a class="sourceLine" id="cb24-16" data-line-number="16">          </a>
-<a class="sourceLine" id="cb24-17" data-line-number="17"><span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span>  <span class="dv">1</span></a></code></pre></div>
-<h3 id="extra-lens-goodness">Extra lens goodness</h3>
-<p>And that’s it, we’ve implemented the logic of the game! Believe it or not, it didn’t take us more than 22 lines of code. But make no mistake. Lenses aren’t for code golfing. They’re just well-crafted, type-safe abstractions. A lot of code was already written on top of those, meaning there’s a lot of stuff you can reuse. Also, when used properly, they should allow you to write less of your own code. I believe that (other things being equal) it is always better: less room for mistakes, less code to maintain, less code newcomers have to understand.</p>
-<p>As opposed to the simplistic Java given in the introduction:</p>
-<ul>
-<li><p>We don’t care (too much) if a matrix is a vector of rows or a vector or columns (row-major or column-major). The Linear library abstracts this for us and gives us a few functions to use in order to traverse the matrix.</p></li>
-<li><p>No null checks.</p></li>
-<li><p>Thanks to lens, we haven’t used a single index explicitly. All the getting, updating and setting of values was declarative. Each indexing of an element has its own function: if an element is not there, the function is not there.</p></li>
-</ul>
-<p>Finally, we can wire everything together, making use this time of lens’ support for actions in the state monad:</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Action</span> <span class="fu">=</span> <span class="dt">Up</span> <span class="fu">|</span> <span class="dt">Down</span> <span class="fu">|</span> <span class="dt">Left</span> <span class="fu">|</span> <span class="dt">Right</span></a>
-<a class="sourceLine" id="cb25-2" data-line-number="2"></a>
-<a class="sourceLine" id="cb25-3" data-line-number="3"><span class="ot">play ::</span> (<span class="dt">MonadState</span> <span class="dt">Board</span> m) <span class="ot">=&gt;</span> <span class="dt">Action</span> <span class="ot">-&gt;</span> m ()</a>
-<a class="sourceLine" id="cb25-4" data-line-number="4">play <span class="dt">Up</span>    <span class="fu">=</span> cols <span class="fu">%=</span> merge</a>
-<a class="sourceLine" id="cb25-5" data-line-number="5">play <span class="dt">Down</span>  <span class="fu">=</span> locs <span class="fu">%=</span> merge</a>
-<a class="sourceLine" id="cb25-6" data-line-number="6">play <span class="dt">Left</span>  <span class="fu">=</span> rows <span class="fu">%=</span> merge</a>
-<a class="sourceLine" id="cb25-7" data-line-number="7">play <span class="dt">Right</span> <span class="fu">=</span> wors <span class="fu">%=</span> merge</a></code></pre></div>]]></summary>
 </entry>
 
 </feed>

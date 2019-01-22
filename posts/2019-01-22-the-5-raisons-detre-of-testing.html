@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <!-- proper charset -->
+        <meta charset="utf-8">
+        <!-- Disable mobile scaling -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <title>Nicolas Mattia</title>
+
+        <!-- Appended '?v=X' for dirtying cache -->
+        <link rel="stylesheet" type="text/css" href="../css/default.css?v=1" />
+        <link href="https://fonts.googleapis.com/css?family=Montserrat|Varela+Round" rel="stylesheet">
+        <link rel="stylesheet" href="../css/font-awesome/css/font-awesome.min.css">
+        <link rel="alternate" type="application/atom+xml" title="nmattia Atom feed" href="../atom.xml?type=blog" />
+        <link rel="alternate" type="application/rss+xml" title="nmattia RSS feed" href="../rss.xml?type=blog" />
+    </head>
+
+    <body>
+        <div class="main">
+            <div class="header">
+                <div class="logo">
+                    <a href="../" class="home">Nicolas Mattia</br></a>
+                    <div class="links">
+                        <a href="https://www.github.com/nmattia"><i class="fa fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/nicolas-mattia/"><i class="fa fa-linkedin"></i></a>
+                        <a href="mailto:nicolas@nmattia.com"><i class="fa fa-envelope-o"></i></a>
+                    </div>
+                </div>
+                <div class="nav">
+                    <ul>
+                        <li><a href="../">home</a></li>
+                        <li><a href="../blog.html">blog</a></li>
+                        <li><a href="../about.html">about</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content">
+                <style>
+.story {
+  background-color: lightblue;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+</style>
+<h1 id="the-5-raisons-dêtre-of-testing">The 5 Raisons d’Être of Testing</h1>
+<p>I describe five of the reasons why I think tests are important:</p>
+<ul>
+<li>Ensure that the code you’ve written works.</li>
+<li>Ensure that the code you’ve written works tomorrow.</li>
+<li>Ensure that the code you’ve written works elsewhere.</li>
+<li>Spot usability issues early on.</li>
+<li>Show how your feature is supposed to work, and how it should be used.</li>
+</ul>
+<p><strong>important</strong>: None of the animals used in the examples were harmed in the making of this post.</p>
+<hr />
+<p>First, let’s get in the mood (or <a href="#ensure-that-the-code-youve-written-works">skip ahead</a>):</p>
+<div class="story">
+<p>You are a backend engineer at <code>MyCuteThings.com</code>, the famous website of cute things. Your boss comes to you and Tommy (your frontend sidekick) one Wednesday morning and declares:</p>
+<blockquote>
+<p>There shall be a <code>&quot;breed&quot;</code> dropdown listing two cat breeds: Persian and Siamese. When the user selects a breed in <code>&quot;breed&quot;</code> a picture of a cat of that breed shall be displayed to the user. Feature codename: “ninja”.</p>
+<p>– your boss</p>
+</blockquote>
+<p>Tommy will deal with the HTML, CSS, and whatever else frontend people use. Your job is to provide an API endpoint that will return the bytes of the correct picture. You find a picture of a very cute Persian cat that you save as <code>cat.png</code>. You take a picture of your very own Siamese cat that you save as <code>CAT.png</code>. You settle on the following REST call:</p>
+<pre><code>GET /cats?breed=&lt;nameOfTheBreed&gt;</code></pre>
+<p>The usage is <em>straightforward</em>:</p>
+<ul>
+<li>if <code>nameOfTheBreed</code> is <code>persian</code> then you read <code>cat.png</code>, return the resulting bytes and <code>200 OK</code>.</li>
+<li>if <code>nameOfTheBreed</code> is <code>siamese</code> then you read <code>CAT.png</code>, return the resulting bytes and <code>200 OK</code>.</li>
+<li>if <code>nameOfTheBreed</code> is anything else, you return zero bytes and <code>200 OK</code> (company policy GTE-421-f, introduced in 2003, forbids you from using <code>404</code>s).</li>
+</ul>
+</div>
+<p>Because we’re dealing with software, anything that can go wrong will go wrong. We’ll go over the five reasons I listed above in more details and we’ll see how tests can help you damage control.</p>
+<h2 id="ensure-that-the-code-youve-written-works">Ensure that the code you’ve written works</h2>
+<p>This may be the most straightforward reason to write tests. However, while it’s valuable to know that whatever you’ve just written works, it’s probably the least important reason.</p>
+<blockquote>
+<p>Testing that code works is the <em>raison d’être</em> of tests!!! How dare you say that it’s not important???</p>
+<p>– Jimmy from Nebraska</p>
+</blockquote>
+<p>Don’t get it twisted Jimmy, I didn’t say it was unimportant: the other reasons are just <em>more</em> important. Most of the time you’ll eventually try the feature (open the website, click <code>Siamese</code>, watch in awe as your cat appears on the screen) after having written the code – which is as much information as you’ll get from a test. You will catch bugs like “trying to open <code>cat.jpg</code> instead of <code>cat.png</code>” straight away anyway.</p>
+<p>Running tests as you write the code is mostly a time saver when you develop a feature, as you (usually) have a single command to run in order to check that you’ve done things correctly. Also, by writing tests close to your spec, it acts as a deadline (once your tests are green, you’re done, you can move on to something else). Moreover by <em>first</em> writing a (failing) test when tasked with fixing a bug you ensure that the bug actually exists. This is typical <a href="https://en.wikipedia.org/wiki/Test-driven_development">TDD</a>.</p>
+<h2 id="ensure-that-the-code-youve-written-works-elsewhere">Ensure that the code you’ve written works elsewhere</h2>
+<div class="story">
+<p>You wrote your feature and Tommy wrote his part. Feature “ninja” got merged into the master branch, after you diligently tested it out by hand. You go home that evening, and as you’re about to start watching the third season of The Wire (for the second time, because you first assumed you didn’t need English subtitles) you get an angry phone call from Jason, the sales rep working late nights because he’s demoing the product to people in another timezone. Jason explains that he can only get a picture of the Persian cat. Even when he picks the Siamese option from the dropdown. The debugging process goes like this:</p>
+<blockquote>
+<p>You: What OS are you using?</p>
+<p>Jason: What’s an <em>awe-hess</em>?</p>
+</blockquote>
+<p>At which point you realize that Jason is running your code on his Windows machine. Which, unfortunately enough, cannot tell the difference between <code>cat.png</code> and <code>CAT.png</code>. You sigh, put the remote down and go back to the drawing board.</p>
+</div>
+<p>Test suites are particularly important in projects that run in several environments. You’ve written code that works on your machine? Great, but it’s likely that you forgot to update some config and that the component you just wrote will break once it’s deployed somewhere else, because you relied on something specific to your (highly tuned, very particular) system.</p>
+<p>If you have a unit test, you’ll make sure it also works on the CI machine(s). If you have an integration test for it, you’ll make sure it works on the CI machine(s) and on the various clusters that a deploy goes through.</p>
+<h2 id="ensure-that-the-code-youve-written-works-tomorrow">Ensure that the code you’ve written works tomorrow</h2>
+<div class="story">
+<p>A month has passed, and not only are you relieved that Season 3 was much better that Season 2, but you’ve also forgotten all about feature “ninja”. You’re sitting at your desk at 5pm, eyeing the clock on the wall more and more frequently. Your boss comes out of his office, forehead sweating, cheeks blushed from anger. He scans the engineering room and his eyes lock on you. He starts walking in your direction. You think to yourself: “This can’t be good.”.</p>
+<p>Twenty minutes later, somewhat happy that your Saturday evening has freed up (your boss and his wife were supposed to come over for dinner), you’re going through git logs with one goal in mind: trying to find who to blame for removing the cat pictures from the repository, thereby breaking feature “ninja”.</p>
+<pre><code>commit 45d2fcd272a273c57033a493ca3df47a67f9bf01
+Author: Jenny Marshalls &lt;jen@mycutethings.com&gt;
+Date:   Tue Aug 21 01:15:33 2018 +0300
+
+    Remove unused kitten pictures</code></pre>
+<p>You start walking to her desk, coming up with as many irrational patriarchal arguments as possible to justify the lack of tests around your feature.</p>
+</div>
+<p>Say you write a feature that works (objectively) perfectly, although doesn’t have any associated tests. Then tomorrow I come around, and tweak your code to add a new feature, inadvertently breaking yours. Then you blame me for breaking my code. Don’t blame me.</p>
+<p>You can’t expect anyone else to anticipate all the implications when they’re tweaking your code, because most likely even <em>you</em> can’t. Hence it is your responsibility to add a test spec-ing the correct behavior of your feature – today and tomorrow.</p>
+<p><strong>SIDE NOTE:</strong> it goes without saying that commenting out tests is not the right way to shoehorn my new feature into your existing code, but that kind of stuff is hopefully caught during review.</p>
+<h2 id="spot-usability-issues-early-on">Spot usability issues early on</h2>
+<p>When you decide to write a test for your new feature you might realize that your interface is awkward to work with. This is really the simplest usability check that you can perform, namely eating your own dog food.</p>
+<p>Catching those issues before they’ve been merged, and before other code relies on it, means that other people will appreciate working with your code more (and thereby making people more inclined to try and understand and reuse your feature – rather than duplicating it) and it will ease the learning process for newcomers.</p>
+<h2 id="show-how-your-feature-is-supposed-to-work-and-how-it-should-be-used">Show how your feature is supposed to work and how it should be used</h2>
+<div class="story">
+<p>It’s been three weeks since you blew your chance at a promotion. In order to avoid similar situations in the future, you’ve added tests. Feature “ninja” has been working seamlessly ever since.</p>
+<p>Your sidekick Tommy tells you that Jenny needs help using a backend feature that you wrote. Things have been weird with Jenny, you still feel guilty for blaming her for the missing pictures and for the way you reacted to the situation. You’ve tried your best to avoid a confrontation since then.</p>
+<p><em>Tell her to look at the tests</em>, you tell Tommy.</p>
+</div>
+<p>Reading tests is a great way to figure out how something is supposed to work. It shows what the input should look like, and what the output will look like. It shows what your feature can do as well.</p>
+<p>If your feature has no associated examples or tests, the user has to rely on the source code and on potentially out-of-date documentation to figure out how it should (and should <em>not</em>) be used. A test is so much nicer.</p>
+<hr />
+<h2 id="conclusion">Conclusion</h2>
+<p>The bottom line is that there’s more than one dimension to having a working codebase: it should be future proof, function in different environments, be usable, and be self-describing. Tests are a great way to achieve this, and when you pair them with a <a href="posts/2019-01-08-hunt-bugs-down-before-they-are-merged.html">good process</a> you’ll become king of the world. Or at least a happy and efficient programmer, part of a happy team.</p>
+            </div>
+        </div>
+
+        <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-82921132-1', 'auto');
+    ga('send', 'pageview');
+
+        </script>
+    </body>
+</html>
